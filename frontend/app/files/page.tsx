@@ -2,24 +2,24 @@
 
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { 
-  Folder, 
-  File, 
-  FolderPlus, 
-  UploadCloud, 
-  Search, 
-  MoreVertical, 
-  Download, 
-  Trash2, 
-  Globe, 
-  Lock, 
-  Eye, 
-  ChevronRight, 
-  ChevronDown, 
-  FileText, 
-  Image as ImageIcon, 
-  FileArchive, 
-  FileCode, 
+import {
+  Folder,
+  File,
+  FolderPlus,
+  UploadCloud,
+  Search,
+  MoreVertical,
+  Download,
+  Trash2,
+  Globe,
+  Lock,
+  Eye,
+  ChevronRight,
+  ChevronDown,
+  FileText,
+  Image as ImageIcon,
+  FileArchive,
+  FileCode,
   Play,
   Info,
   Calendar,
@@ -37,6 +37,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { clientApi } from "@/lib/api/client";
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from "@/components/ui/empty";
+import { useDeleteConfirmation } from "@/components/auth/delete-confirmation-context";
 
 
 interface FolderType {
@@ -77,6 +78,19 @@ export default function FileManagerPage() {
   const [newFolderName, setNewFolderName] = useState("");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const { confirmDelete } = useDeleteConfirmation();
+
+  const handleDeleteClick = (type: "folder" | "file", id: string, name: string) => {
+    confirmDelete(async () => {
+      if (type === "folder") {
+        await deleteFolderMutation.mutateAsync(id);
+      } else {
+        await deleteFileMutation.mutateAsync(id);
+      }
+    });
+  };
+
+
 
   // Fetch all folders for tree representation
   const { data: allFolders = [], isLoading: isLoadingFolders } = useQuery<FolderType[]>({
@@ -99,7 +113,7 @@ export default function FileManagerPage() {
 
   // Create folder mutation
   const createFolderMutation = useMutation({
-    mutationFn: (newFolder: { name: string; parent_id: string | null }) => 
+    mutationFn: (newFolder: { name: string; parent_id: string | null }) =>
       clientApi.post("storage/folders", { json: newFolder }).json(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["storage"] });
@@ -162,17 +176,17 @@ export default function FileManagerPage() {
 
     try {
       setUploadProgress(10);
-      
+
       // 1. Get presigned upload URL
       const presignResponse: { upload_url: string; s3_key: string } = await clientApi.post(
-        "storage/files/presign-upload", 
-        { 
-          json: { 
-            name: file.name, 
-            mime_type: file.type || "application/octet-stream", 
-            size: file.size, 
+        "storage/files/presign-upload",
+        {
+          json: {
+            name: file.name,
+            mime_type: file.type || "application/octet-stream",
+            size: file.size,
             folder_id: currentFolderId === "root" ? null : currentFolderId
-          } 
+          }
         }
       ).json();
 
@@ -260,7 +274,7 @@ export default function FileManagerPage() {
 
     return (
       <div className="select-none">
-        <div 
+        <div
           onClick={() => {
             setCurrentFolderId(folder.id);
             setSelectedItem({ type: "folder", data: folder });
@@ -268,14 +282,14 @@ export default function FileManagerPage() {
           className={`group flex items-center justify-between py-1.5 px-2.5 rounded-lg cursor-pointer transition-all hover:bg-muted/50 ${isSelected ? "bg-indigo-600/10 text-indigo-400 font-semibold" : "text-muted-foreground hover:text-foreground"}`}
           style={{ paddingLeft: `${Math.max(10, level * 16)}px` }}
         >
-          <div className="flex items-center gap-2 overflow-hidden">
+          <div className="flex items-center gap-2 overflow-hidden mr-2">
             {childs.length > 0 ? (
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setExpanded(!expanded);
                 }}
-                className="p-0.5 hover:bg-muted rounded text-muted-foreground"
+                className="p-0.5 hover:bg-muted rounded text-muted-foreground cursor-pointer"
               >
                 {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3.5 w-3.5" />}
               </button>
@@ -285,7 +299,20 @@ export default function FileManagerPage() {
             <Folder className={`h-4 w-4 shrink-0 ${isSelected ? "text-indigo-400" : "text-zinc-400 group-hover:text-foreground"}`} />
             <span className="text-xs truncate capitalize">{folder.name}</span>
           </div>
-          {folder.is_public && <Globe className="h-3 w-3 text-emerald-500 shrink-0 opacity-80" />}
+          <div className="flex items-center gap-1 shrink-0">
+            {folder.is_public && <Globe className="h-3 w-3 text-emerald-500 opacity-80" />}
+            {folder.parent_id !== null && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteClick("folder", folder.id, folder.name);
+                }}
+                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/15 rounded text-muted-foreground hover:text-destructive transition-all cursor-pointer"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            )}
+          </div>
         </div>
         {expanded && childs.map(child => (
           <TreeNode key={child.id} folder={child} level={level + 1} />
@@ -294,7 +321,7 @@ export default function FileManagerPage() {
     );
   };
 
-  const filteredFiles = contents?.files.filter(f => 
+  const filteredFiles = contents?.files.filter(f =>
     f.name.toLowerCase().includes(search.toLowerCase())
   ) || [];
 
@@ -308,9 +335,9 @@ export default function FileManagerPage() {
       <div className="w-full md:w-64 border-r border-border bg-card/60 flex flex-col h-1/3 md:h-full shrink-0">
         <div className="p-4 border-b border-border flex items-center justify-between">
           <h2 className="text-sm font-bold text-foreground">Folders</h2>
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setIsNewFolderOpen(true)}
             className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
           >
@@ -320,7 +347,7 @@ export default function FileManagerPage() {
         <ScrollArea className="flex-1 p-2">
           <div className="space-y-1">
             {/* Root folder tree list */}
-            {allFolders.filter(f => f.parent_id === null).map(rootFolder => (
+            {allFolders.filter(f => f.parent_id === null || !allFolders.some(parent => parent.id === f.parent_id)).map(rootFolder => (
               <TreeNode key={rootFolder.id} folder={rootFolder} level={0} />
             ))}
             {allFolders.length === 0 && !isLoadingFolders && (
@@ -353,11 +380,11 @@ export default function FileManagerPage() {
             <label className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-semibold cursor-pointer shrink-0 transition-all active:scale-95">
               <UploadCloud className="h-4 w-4" />
               <span>Upload</span>
-              <input 
-                type="file" 
-                className="hidden" 
-                onChange={handleFileUpload} 
-                disabled={uploadProgress !== null} 
+              <input
+                type="file"
+                className="hidden"
+                onChange={handleFileUpload}
+                disabled={uploadProgress !== null}
               />
             </label>
           </div>
@@ -366,8 +393,8 @@ export default function FileManagerPage() {
         {/* Upload Progress Bar */}
         {uploadProgress !== null && (
           <div className="w-full bg-muted h-1 relative overflow-hidden">
-            <div 
-              className="bg-indigo-600 h-full transition-all duration-300" 
+            <div
+              className="bg-indigo-600 h-full transition-all duration-300"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
@@ -492,8 +519,8 @@ export default function FileManagerPage() {
                   />
                 </div>
                 <p className="text-[10px] text-muted-foreground leading-normal">
-                  {selectedItem.data.is_public 
-                    ? "Anyone in the organization can view this folder/file." 
+                  {selectedItem.data.is_public
+                    ? "Anyone in the organization can view this folder/file."
                     : "Only you (and super admins) can view or modify this folder/file."}
                 </p>
               </div>
@@ -515,14 +542,14 @@ export default function FileManagerPage() {
                       <div className="space-y-1.5 pt-2">
                         <span className="text-[11px] text-muted-foreground font-bold">Public Link</span>
                         <div className="flex gap-1">
-                          <Input 
-                            readOnly 
-                            value={selectedItem.data.download_url} 
-                            className="h-8 text-[10px] bg-muted/30 border-border font-mono select-all truncate" 
+                          <Input
+                            readOnly
+                            value={selectedItem.data.download_url}
+                            className="h-8 text-[10px] bg-muted/30 border-border font-mono select-all truncate"
                           />
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
+                          <Button
+                            variant="outline"
+                            size="icon"
                             className="h-8 w-8 shrink-0 cursor-pointer"
                             onClick={() => copyToClipboard(selectedItem.data.download_url)}
                           >
@@ -538,7 +565,7 @@ export default function FileManagerPage() {
               {/* Action Buttons */}
               <div className="flex gap-2 pt-2">
                 {selectedItem.type === "file" && selectedItem.data.download_url && (
-                  <Button 
+                  <Button
                     asChild
                     variant="outline"
                     className="flex-1 gap-1 h-9 text-xs cursor-pointer"
@@ -549,16 +576,12 @@ export default function FileManagerPage() {
                     </a>
                   </Button>
                 )}
-                <Button 
+                <Button
                   variant="destructive"
                   className="flex-1 gap-1 h-9 text-xs cursor-pointer"
                   onClick={() => {
-                    if (confirm(`Are you sure you want to delete this ${selectedItem.type}?`)) {
-                      if (selectedItem.type === "folder") {
-                        deleteFolderMutation.mutate(selectedItem.data.id);
-                      } else {
-                        deleteFileMutation.mutate(selectedItem.data.id);
-                      }
+                    if (selectedItem) {
+                      handleDeleteClick(selectedItem.type, selectedItem.data.id, selectedItem.data.name);
                     }
                   }}
                 >
@@ -579,7 +602,7 @@ export default function FileManagerPage() {
             <DialogDescription>Create a new folder to organize your files.</DialogDescription>
           </DialogHeader>
           <div className="py-4 text-left">
-            <Input 
+            <Input
               placeholder="Folder Name"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}

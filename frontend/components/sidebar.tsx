@@ -533,6 +533,7 @@ export const Sidebar: React.FC = () => {
               { href: "/dashboard", icon: <LayoutDashboard className="h-4 w-4 shrink-0" />, label: "Dashboard", active: pathname === "/dashboard" },
               { href: "/updates", icon: <ClipboardList className="h-4 w-4 shrink-0" />, label: "Daily Updates", active: pathname === "/updates" },
               { href: "/files", icon: <FolderOpen className="h-4 w-4 shrink-0" />, label: "Files Manager", active: pathname === "/files" },
+              { href: "/projects", icon: <Kanban className="h-4 w-4 shrink-0" />, label: "Projects Manager", active: pathname.startsWith("/projects") },
               ...(!(activeProject && !isGlobalActive) ? [{ href: "/attendance", icon: <Clock className="h-4 w-4 shrink-0" />, label: "Attendance Clock", active: pathname === "/attendance" }] : []),
             ].map((item) => (
               <Link

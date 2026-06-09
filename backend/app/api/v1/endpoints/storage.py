@@ -27,20 +27,23 @@ from app.core.boto import (
 from app.core.config import settings
 from app.api.v1.endpoints.history import log_activity
 
+from sqlalchemy import update
+
 router = APIRouter()
 
 async def get_or_create_user_root_folder(db: AsyncSession, user: User) -> Folder:
     """
     Finds or creates a personal root folder named after the user's username.
+    Cleans up any duplicate root folders that might have been created concurrently.
     """
     stmt = select(Folder).where(
         Folder.parent_id == None,
-        Folder.owner_id == user.id,
-        Folder.name == user.username
+        Folder.owner_id == user.id
     )
     res = await db.execute(stmt)
-    root = res.scalars().first()
-    if not root:
+    roots = res.scalars().all()
+    
+    if not roots:
         root = Folder(
             name=user.username,
             parent_id=None,
@@ -48,8 +51,38 @@ async def get_or_create_user_root_folder(db: AsyncSession, user: User) -> Folder
             is_public=False
         )
         db.add(root)
+        try:
+            await db.commit()
+            await db.refresh(root)
+        except Exception:
+            await db.rollback()
+            res = await db.execute(stmt)
+            roots = res.scalars().all()
+            if roots:
+                root = roots[0]
+            else:
+                raise
+        return root
+    
+    root = roots[0]
+    if len(roots) > 1:
+        for extra_root in roots[1:]:
+            # Migrate any files or subfolders to the main root
+            await db.execute(
+                update(File).where(File.folder_id == extra_root.id).values(folder_id=root.id)
+            )
+            await db.execute(
+                update(Folder).where(Folder.parent_id == extra_root.id).values(parent_id=root.id)
+            )
+            await db.delete(extra_root)
         await db.commit()
         await db.refresh(root)
+
+    if root.name != user.username:
+        root.name = user.username
+        await db.commit()
+        await db.refresh(root)
+        
     return root
 
 @router.get("/folders", response_model=List[FolderResponse])
@@ -57,14 +90,17 @@ async def list_folders(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ) -> List[FolderResponse]:
-    # Return folders owned by user, or public folders.
+    root = await get_or_create_user_root_folder(db, current_user)
+
     stmt = select(Folder).where(
         (Folder.owner_id == current_user.id) | (Folder.is_public == True)
     )
     res = await db.execute(stmt)
     folders = res.scalars().all()
-    # Always ensure root folder exists
-    await get_or_create_user_root_folder(db, current_user)
+    
+    if current_user.is_staff:
+        folders = [f for f in folders if f.id != root.id]
+        
     return list(folders)
 
 @router.post("/folders", response_model=FolderResponse)

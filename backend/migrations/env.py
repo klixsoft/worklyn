@@ -17,6 +17,7 @@ from app.core.database import Base
 from app.models.auth import User, Role, Permission
 from app.models.history import AuditLog
 from app.models.storage import Folder, File
+from app.models.project_task import Project, Task
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
