@@ -3,11 +3,6 @@ from app.core.database import engine, Base
 from app.models.auth import User, Role, Permission
 
 async def recreate_and_seed():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-        print("Database tables recreated successfully.")
-
     from app.core.database import SessionLocal
     from app.core.security import hash_password
 

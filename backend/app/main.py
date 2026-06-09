@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
     Manages FastAPI startup and shutdown lifecycles.
     """
     setup_logging()
-    
+
     from app.core.database import engine, Base
     from app.models.auth import User, Role, Permission
     async with engine.begin() as conn:
@@ -48,7 +48,6 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
-
 
 @app.get("/")
 def root():
