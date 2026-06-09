@@ -1,5 +1,5 @@
 services:
-  # ── Database ── PostgreSQL 17
+  # Database: PostgreSQL 17
   db:
     image: postgres:17-alpine
     container_name: pm_db
@@ -20,7 +20,7 @@ services:
     networks:
       - pm_network
 
-  # ── Cache ── Redis
+  # Cache: Redis
   redis:
     image: redis:7-alpine
     container_name: pm_redis
@@ -37,7 +37,7 @@ services:
     networks:
       - pm_network
 
-  # ── Message Queue ── RabbitMQ
+  # Message Queue: RabbitMQ
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: pm_rabbitmq
@@ -55,7 +55,7 @@ services:
     networks:
       - pm_network
 
-  # ── Backend ── FastAPI (port 8000)
+  # Backend: FastAPI
   backend:
     image: klixsoft/worklyn-backend:latest
     build:
@@ -88,7 +88,7 @@ services:
     networks:
       - pm_network
 
-  # ── Frontend ── Next.js (port 3000)
+  # Frontend: Next.js
   frontend:
     image: klixsoft/worklyn-frontend:latest
     build:
