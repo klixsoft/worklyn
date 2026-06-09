@@ -45,7 +45,7 @@ const getRoleColor = (idx: number) => ROLE_COLORS[idx % ROLE_COLORS.length];
 
 const roleSchema = z.object({
   name: z.string().min(1, "Role name is required"),
-  permission_ids: z.array(z.string()).default([]),
+  permission_ids: z.array(z.string()),
 });
 
 type RoleFormValues = z.infer<typeof roleSchema>;
@@ -90,7 +90,7 @@ export default function RolesPage() {
       setIsAddOpen(false);
       createForm.reset();
     },
-    onError: (err) => handleApiError(err, createForm),
+    onError: (err) => handleApiError(err, createForm as never),
   });
 
   const updateRoleMutation = useMutation({
@@ -101,7 +101,7 @@ export default function RolesPage() {
       setEditingRole(null);
       editForm.reset();
     },
-    onError: (err) => handleApiError(err, editForm),
+    onError: (err) => handleApiError(err, editForm as never),
   });
 
   const deleteRoleMutation = useMutation({
@@ -279,10 +279,10 @@ export default function RolesPage() {
               </DialogDescription>
             </DialogHeader>
             <Form {...createForm}>
-              <form onSubmit={createForm.handleSubmit(handleCreateSubmit)}>
+              <form onSubmit={createForm.handleSubmit(handleCreateSubmit as never)}>
                 <div className="p-4 space-y-4">
                   <FormField
-                    control={createForm.control}
+                    control={createForm.control as never}
                     name="name"
                     render={({ field }) => (
                       <FormItem>
@@ -295,7 +295,7 @@ export default function RolesPage() {
                     )}
                   />
                   <FormField
-                    control={createForm.control}
+                    control={createForm.control as never}
                     name="permission_ids"
                     render={({ field }) => (
                       <FormItem>
@@ -312,7 +312,7 @@ export default function RolesPage() {
                                     if (e.target.checked) {
                                       field.onChange([...field.value, p.id]);
                                     } else {
-                                      field.onChange(field.value.filter((id) => id !== p.id));
+                                      field.onChange(field.value.filter((id: string) => id !== p.id));
                                     }
                                   }}
                                 />
@@ -348,10 +348,10 @@ export default function RolesPage() {
               </DialogDescription>
             </DialogHeader>
             <Form {...editForm}>
-              <form onSubmit={editForm.handleSubmit(handleUpdateSubmit)}>
+              <form onSubmit={editForm.handleSubmit(handleUpdateSubmit as never)}>
                 <div className="p-4 space-y-4">
                   <FormField
-                    control={editForm.control}
+                    control={editForm.control as never}
                     name="name"
                     render={({ field }) => (
                       <FormItem>
@@ -364,7 +364,7 @@ export default function RolesPage() {
                     )}
                   />
                   <FormField
-                    control={editForm.control}
+                    control={editForm.control as never}
                     name="permission_ids"
                     render={({ field }) => (
                       <FormItem>
@@ -381,7 +381,7 @@ export default function RolesPage() {
                                     if (e.target.checked) {
                                       field.onChange([...field.value, p.id]);
                                     } else {
-                                      field.onChange(field.value.filter((id) => id !== p.id));
+                                      field.onChange(field.value.filter((id: string) => id !== p.id));
                                     }
                                   }}
                                 />
