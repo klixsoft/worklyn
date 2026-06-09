@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useWorkspace } from "@/app/context";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -75,6 +75,33 @@ const PRESET_COLORS = [
   { name: "Cyan", value: "bg-cyan-600" },
 ];
 
+const SOFTWARE_MODULES = [
+  {
+    id: "pm" as const,
+    label: "Project Management",
+    icon: <Kanban className="h-5 w-5" />,
+    activeClass: "bg-indigo-600 text-white ring-2 ring-indigo-500 ring-offset-2 ring-offset-background",
+    inactiveClass: "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20",
+    route: "/dashboard",
+  },
+  {
+    id: "finance" as const,
+    label: "Finance Suite",
+    icon: <DollarSign className="h-5 w-5" />,
+    activeClass: "bg-emerald-600 text-white ring-2 ring-emerald-500 ring-offset-2 ring-offset-background",
+    inactiveClass: "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20",
+    route: "/finance",
+  },
+  {
+    id: "hr" as const,
+    label: "HR Management",
+    icon: <UserCog className="h-5 w-5" />,
+    activeClass: "bg-violet-600 text-white ring-2 ring-violet-500 ring-offset-2 ring-offset-background",
+    inactiveClass: "bg-violet-500/10 text-violet-500 hover:bg-violet-500/20",
+    route: "/hr",
+  },
+];
+
 export const Sidebar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -105,6 +132,7 @@ export const Sidebar: React.FC = () => {
   const [projIcon, setProjIcon] = useState("📁");
   const [projColor, setProjColor] = useState("bg-indigo-600");
   const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const [theme, setTheme] = useState<"light" | "dark">("dark");
 
@@ -121,7 +149,7 @@ export const Sidebar: React.FC = () => {
     }
   }, []);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
     if (nextTheme === "dark") {
@@ -133,7 +161,18 @@ export const Sidebar: React.FC = () => {
       document.documentElement.style.colorScheme = "light";
       localStorage.setItem("theme", "light");
     }
-  };
+  }, [theme]);
+
+  const handleLogout = useCallback(async () => {
+    setIsLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      window.location.href = "/login";
+    } catch (err) {
+      console.error("Logout failed", err);
+      setIsLoggingOut(false);
+    }
+  }, []);
 
   const [isNewChannelOpen, setIsNewChannelOpen] = useState(false);
   const [chanName, setChanName] = useState("");
@@ -141,7 +180,7 @@ export const Sidebar: React.FC = () => {
   const [isGroupCreation, setIsGroupCreation] = useState(false);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
 
-  const handleCreateProject = (e: React.FormEvent) => {
+  const handleCreateProject = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!projName.trim()) return;
     addProject(projName, projDesc, projIcon, projColor);
@@ -150,18 +189,18 @@ export const Sidebar: React.FC = () => {
     setProjIcon("📁");
     setProjColor("bg-indigo-600");
     setIsNewProjectOpen(false);
-  };
+  }, [projName, projDesc, projIcon, projColor, addProject]);
 
-  const handleCreateChannel = (e: React.FormEvent) => {
+  const handleCreateChannel = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!chanName.trim() || !activeProjectId) return;
     addChannel(activeProjectId, chanName, "text", isGroupCreation ? selectedMembers : undefined);
     setChanName("");
     setIsNewChannelOpen(false);
     setSelectedMembers([]);
-  };
+  }, [chanName, activeProjectId, isGroupCreation, selectedMembers, addChannel]);
 
-  const selectProject = (projId: string | null) => {
+  const selectProject = useCallback((projId: string | null) => {
     setActiveProjectId(projId);
     if (projId) {
       const proj = projects.find((p) => p.id === projId);
@@ -175,38 +214,25 @@ export const Sidebar: React.FC = () => {
     } else {
       router.push("/dashboard");
     }
-  };
+  }, [setActiveProjectId, projects, setActiveChannel, router]);
 
+  const isGlobalActive = useMemo(() => {
+    return pathname === "/dashboard" || pathname === "/updates" || pathname === "/attendance" || pathname === "/chat" || pathname === "/users" || pathname === "/roles" || pathname === "/finance" || pathname === "/hr";
+  }, [pathname]);
 
+  const textChannels = useMemo(() => {
+    if (!activeProject?.channels) return [];
+    return activeProject.channels.filter(
+      (c) => c.type === "text" && (!c.assignedMemberIds || c.assignedMemberIds.length === 0)
+    );
+  }, [activeProject?.channels]);
 
-  const isGlobalActive = pathname === "/dashboard" || pathname === "/updates" || pathname === "/attendance" || pathname === "/chat" || pathname === "/users" || pathname === "/roles" || pathname === "/finance" || pathname === "/hr";
-
-  const SOFTWARE_MODULES = [
-    {
-      id: "pm" as const,
-      label: "Project Management",
-      icon: <Kanban className="h-5 w-5" />,
-      activeClass: "bg-indigo-600 text-white ring-2 ring-indigo-500 ring-offset-2 ring-offset-background",
-      inactiveClass: "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20",
-      route: "/dashboard",
-    },
-    {
-      id: "finance" as const,
-      label: "Finance Suite",
-      icon: <DollarSign className="h-5 w-5" />,
-      activeClass: "bg-emerald-600 text-white ring-2 ring-emerald-500 ring-offset-2 ring-offset-background",
-      inactiveClass: "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20",
-      route: "/finance",
-    },
-    {
-      id: "hr" as const,
-      label: "HR Management",
-      icon: <UserCog className="h-5 w-5" />,
-      activeClass: "bg-violet-600 text-white ring-2 ring-violet-500 ring-offset-2 ring-offset-background",
-      inactiveClass: "bg-violet-500/10 text-violet-500 hover:bg-violet-500/20",
-      route: "/hr",
-    },
-  ];
+  const chatGroups = useMemo(() => {
+    if (!activeProject?.channels) return [];
+    return activeProject.channels.filter(
+      (c) => c.type === "text" && c.assignedMemberIds && c.assignedMemberIds.length > 0
+    );
+  }, [activeProject?.channels]);
 
   return (
     <div className="flex h-screen select-none text-muted-foreground font-sans shrink-0">
@@ -580,26 +606,24 @@ export const Sidebar: React.FC = () => {
                   />
                 </div>
 
-                {activeProject.channels
-                  .filter((c) => c.type === "text" && (!c.assignedMemberIds || c.assignedMemberIds.length === 0))
-                  .map((channel) => {
-                    const isSelected = pathname.endsWith("/chat") && activeChannelId === channel.id;
-                    return (
-                      <button
-                        key={channel.id}
-                        onClick={() => { setActiveChannel(channel.id, "project"); router.push(`/projects/${activeProject.id}/chat`); }}
-                        className={cn(
-                          "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm transition-all hover:bg-muted/60 hover:text-foreground",
-                          isSelected
-                            ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        <Hash className="h-4 w-4 shrink-0 text-muted-foreground/60" />
-                        <span className="truncate">{channel.name}</span>
-                      </button>
-                    );
-                  })}
+                {textChannels.map((channel) => {
+                  const isSelected = pathname.endsWith("/chat") && activeChannelId === channel.id;
+                  return (
+                    <button
+                      key={channel.id}
+                      onClick={() => { setActiveChannel(channel.id, "project"); router.push(`/projects/${activeProject.id}/chat`); }}
+                      className={cn(
+                        "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm transition-all hover:bg-muted/60 hover:text-foreground",
+                        isSelected
+                          ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      <Hash className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+                      <span className="truncate">{channel.name}</span>
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="space-y-0.5 pt-2 border-t border-border/60">
@@ -611,27 +635,25 @@ export const Sidebar: React.FC = () => {
                   />
                 </div>
 
-                {activeProject.channels
-                  .filter((c) => c.type === "text" && c.assignedMemberIds && c.assignedMemberIds.length > 0)
-                  .map((channel) => {
-                    const isSelected = pathname.endsWith("/chat") && activeChannelId === channel.id;
-                    return (
-                      <button
-                        key={channel.id}
-                        onClick={() => { setActiveChannel(channel.id, "project"); router.push(`/projects/${activeProject.id}/chat`); }}
-                        className={cn(
-                          "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm transition-all hover:bg-muted/60 hover:text-foreground",
-                          isSelected
-                            ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        <Hash className="h-4 w-4 shrink-0 text-muted-foreground/60" />
-                        <span className="truncate flex-1 text-left">{channel.name}</span>
-                        <span className="rounded bg-indigo-600/30 text-indigo-400 px-1.5 py-0.5 text-[8px] uppercase font-bold shrink-0">Group</span>
-                      </button>
-                    );
-                  })}
+                {chatGroups.map((channel) => {
+                  const isSelected = pathname.endsWith("/chat") && activeChannelId === channel.id;
+                  return (
+                    <button
+                      key={channel.id}
+                      onClick={() => { setActiveChannel(channel.id, "project"); router.push(`/projects/${activeProject.id}/chat`); }}
+                      className={cn(
+                        "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm transition-all hover:bg-muted/60 hover:text-foreground",
+                        isSelected
+                          ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      <Hash className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+                      <span className="truncate flex-1 text-left">{channel.name}</span>
+                      <span className="rounded bg-indigo-600/30 text-indigo-400 px-1.5 py-0.5 text-[8px] uppercase font-bold shrink-0">Group</span>
+                    </button>
+                  );
+                })}
               </div>
 
               <Dialog open={isNewChannelOpen} onOpenChange={setIsNewChannelOpen}>
@@ -790,52 +812,55 @@ export const Sidebar: React.FC = () => {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-56 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300"
+                className="w-56 rounded-lg bg-popover border border-border text-popover-foreground"
                 side="top"
                 align="end"
                 sideOffset={8}
               >
                 <DropdownMenuLabel className="p-0 font-normal">
-                  <div className="flex items-center gap-2 px-3 py-2 text-left text-sm border-b border-zinc-800/60">
+                  <div className="flex items-center gap-2 px-3 py-2 text-left text-sm border-b border-border">
                     <Avatar className="h-8 w-8 rounded-lg">
                       <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
                       <AvatarFallback className="rounded-lg">{currentUser.name.slice(0, 2)}</AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-xs leading-tight">
-                      <span className="truncate font-semibold text-zinc-100">{currentUser.name}</span>
-                      <span className="truncate text-zinc-500 text-[10px]">{currentUser.role}</span>
+                      <span className="truncate font-semibold text-foreground">{currentUser.name}</span>
+                      <span className="truncate text-muted-foreground text-[10px]">{currentUser.role}</span>
                     </div>
                   </div>
                 </DropdownMenuLabel>
 
                 <DropdownMenuGroup className="p-1">
-                  <DropdownMenuItem className="flex items-center gap-2 px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50 rounded cursor-pointer transition-colors">
+                  <DropdownMenuItem className="flex items-center gap-2 px-2 py-1.5 text-xs text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded cursor-pointer transition-colors">
                     <Sparkles className="h-3.5 w-3.5" />
                     Upgrade to Pro
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
 
-                <DropdownMenuSeparator className="bg-zinc-800/60" />
+                <DropdownMenuSeparator className="bg-border" />
 
                 <DropdownMenuGroup className="p-1">
-                  <DropdownMenuItem className="flex items-center gap-2 px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50 rounded cursor-pointer transition-colors">
+                  <DropdownMenuItem className="flex items-center gap-2 px-2 py-1.5 text-xs text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded cursor-pointer transition-colors">
                     <BadgeCheck className="h-3.5 w-3.5" />
                     Account
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="flex items-center gap-2 px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50 rounded cursor-pointer transition-colors">
+                  <DropdownMenuItem className="flex items-center gap-2 px-2 py-1.5 text-xs text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded cursor-pointer transition-colors">
                     <CreditCard className="h-3.5 w-3.5" />
                     Billing
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="flex items-center gap-2 px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50 rounded cursor-pointer transition-colors">
+                  <DropdownMenuItem className="flex items-center gap-2 px-2 py-1.5 text-xs text-popover-foreground hover:bg-accent hover:text-accent-foreground rounded cursor-pointer transition-colors">
                     <Bell className="h-3.5 w-3.5" />
                     Notifications
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
 
-                <DropdownMenuSeparator className="bg-zinc-800/60" />
+                <DropdownMenuSeparator className="bg-border" />
 
                 <div className="p-1">
-                  <DropdownMenuItem className="flex items-center gap-2 px-2 py-1.5 text-xs text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 rounded cursor-pointer transition-colors">
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 px-2 py-1.5 text-xs text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 rounded cursor-pointer transition-colors"
+                  >
                     <LogOut className="h-3.5 w-3.5" />
                     Log out
                   </DropdownMenuItem>
@@ -846,6 +871,15 @@ export const Sidebar: React.FC = () => {
         </div>
 
       </div>
+
+      {isLoggingOut && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 p-6 bg-card border border-border rounded-xl shadow-xl">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+            <p className="text-sm font-semibold text-foreground">Logging out...</p>
+          </div>
+        </div>
+      )}
 
     </div>
   );

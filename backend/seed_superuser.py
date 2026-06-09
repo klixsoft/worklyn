@@ -19,6 +19,10 @@ async def recreate_and_seed():
             Permission(name="roles:create"),
             Permission(name="roles:update"),
             Permission(name="roles:delete"),
+            Permission(name="projects:read"),
+            Permission(name="projects:create"),
+            Permission(name="projects:update"),
+            Permission(name="projects:delete"),
         ]
         db.add_all(perms)
         await db.commit()

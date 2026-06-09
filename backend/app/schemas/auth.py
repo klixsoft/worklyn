@@ -13,6 +13,7 @@ class UserResponse(BaseModel):
     role: str
     permissions: List[str]
     is_superuser: bool
+    is_staff: bool
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     avatar: Optional[str] = None

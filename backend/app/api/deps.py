@@ -89,6 +89,9 @@ def verify_permission(required_permission: str):
         if user.is_superuser:
             return user
 
+        if user.is_staff and required_permission in ["users:read", "users:update"]:
+            return user
+
         permissions = set()
         user_roles_list = []
         for role in user.roles:

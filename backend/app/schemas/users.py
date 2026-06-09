@@ -9,6 +9,7 @@ class UserCreate(BaseModel):
     phone_number: Optional[str] = None
     is_active: bool = True
     is_superuser: bool = False
+    is_staff: bool = False
     role_ids: List[str] = []
 
 class UserUpdate(BaseModel):
@@ -18,10 +19,15 @@ class UserUpdate(BaseModel):
     phone_number: Optional[str] = None
     is_active: Optional[bool] = None
     is_superuser: Optional[bool] = None
+    is_staff: Optional[bool] = None
     role_ids: Optional[List[str]] = None
 
 class DeleteConfirmation(BaseModel):
     password: str
+
+class ChangePasswordRequest(BaseModel):
+    admin_password: str
+    new_password: str
 
 class RoleCreate(BaseModel):
     name: str
@@ -45,6 +51,7 @@ class UserCRUDResponse(BaseModel):
     email: str
     is_active: bool
     is_superuser: bool
+    is_staff: bool
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     phone_number: Optional[str] = None

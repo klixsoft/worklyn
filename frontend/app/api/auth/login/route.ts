@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       role: userData.role,
       permissions: userData.permissions,
       isSuperuser: userData.is_superuser,
+      isStaff: userData.is_staff,
       firstName: userData.first_name,
       lastName: userData.last_name,
       avatar: userData.avatar,

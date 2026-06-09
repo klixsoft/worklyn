@@ -51,6 +51,7 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)) -
         role=primary_role,
         permissions=list(permissions),
         is_superuser=user.is_superuser,
+        is_staff=user.is_staff,
         first_name=user.first_name,
         last_name=user.last_name,
         avatar=user.avatar,
