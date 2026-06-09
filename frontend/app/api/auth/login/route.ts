@@ -33,6 +33,11 @@ export async function POST(request: NextRequest) {
       email: userData.email,
       role: userData.role,
       permissions: userData.permissions,
+      firstName: userData.first_name,
+      lastName: userData.last_name,
+      avatar: userData.avatar,
+      phoneNumber: userData.phone_number,
+      documentUrl: userData.document_url,
       accessToken: userData.access_token,
       refreshToken: userData.refresh_token,
     };

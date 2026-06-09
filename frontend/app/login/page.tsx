@@ -44,7 +44,7 @@ export default function LoginPage() {
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-950 via-background to-background overflow-hidden p-4">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-blue-950/20 via-transparent to-transparent pointer-events-none" />
-      
+
       <div className="w-full max-w-md bg-card/40 backdrop-blur-xl border border-border/40 p-8 rounded-3xl shadow-2xl relative z-10">
         <div className="flex flex-col items-center mb-8 text-center">
           <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4 text-primary">

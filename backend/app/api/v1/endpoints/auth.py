@@ -53,6 +53,11 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)) -
         email=user.email,
         role=primary_role,
         permissions=list(permissions),
+        first_name=user.first_name,
+        last_name=user.last_name,
+        avatar=user.avatar,
+        phone_number=user.phone_number,
+        document_url=user.document_url,
         access_token=access_token,
         refresh_token=refresh_token,
     )

@@ -7,6 +7,11 @@ export interface SessionData {
     email: string;
     role: string;
     permissions: string[];
+    firstName?: string;
+    lastName?: string;
+    avatar?: string;
+    phoneNumber?: string;
+    documentUrl?: string;
     accessToken: string;
     refreshToken: string;
   };
