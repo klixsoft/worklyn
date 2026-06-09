@@ -79,6 +79,8 @@ export const Sidebar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
 
+  if (pathname === "/login") return null;
+
   const {
     projects,
     activeProjectId,
