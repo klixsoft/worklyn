@@ -34,6 +34,7 @@ async def list_users(
         response_list.append(UserCRUDResponse(
             id=str(u.id),
             email=u.email,
+            username=u.username,
             is_active=u.is_active,
             is_superuser=u.is_superuser,
             is_staff=u.is_staff,
@@ -62,8 +63,25 @@ async def create_user(
         body.is_superuser = False
         body.is_staff = False
 
+    import re
+    # Extract base username from email and clean it
+    base_username = body.email.split("@")[0].lower()
+    base_username = re.sub(r'[^a-zA-Z0-9_\-]', '', base_username)
+    if not base_username:
+        base_username = "user"
+    username = base_username
+    counter = 1
+    while True:
+        check_stmt = select(User).where(User.username == username)
+        check_res = await db.execute(check_stmt)
+        if not check_res.scalar_one_or_none():
+            break
+        username = f"{base_username}{counter}"
+        counter += 1
+
     new_user = User(
         email=body.email.lower(),
+        username=username,
         hashed_password=hash_password(body.password),
         is_active=body.is_active,
         is_superuser=body.is_superuser,
@@ -93,6 +111,7 @@ async def create_user(
     return UserCRUDResponse(
         id=str(new_user.id),
         email=new_user.email,
+        username=new_user.username,
         is_active=new_user.is_active,
         is_superuser=new_user.is_superuser,
         is_staff=new_user.is_staff,
@@ -162,6 +181,7 @@ async def update_user(
     return UserCRUDResponse(
         id=str(user.id),
         email=user.email,
+        username=user.username,
         is_active=user.is_active,
         is_superuser=user.is_superuser,
         is_staff=user.is_staff,

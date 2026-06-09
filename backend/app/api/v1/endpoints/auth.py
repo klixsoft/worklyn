@@ -48,6 +48,7 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)) -
     return UserResponse(
         id=str(user.id),
         email=user.email,
+        username=user.username,
         role=primary_role,
         permissions=list(permissions),
         is_superuser=user.is_superuser,

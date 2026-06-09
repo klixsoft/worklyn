@@ -10,6 +10,7 @@ class LoginRequest(BaseModel):
 class UserResponse(BaseModel):
     id: str
     email: str
+    username: str
     role: str
     permissions: List[str]
     is_superuser: bool

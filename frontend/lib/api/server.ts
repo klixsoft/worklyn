@@ -19,14 +19,12 @@ export const serverApi = ky.create({
           const session = await getSession();
           if (session?.user?.refreshToken) {
             try {
-              const refreshRes = await fetch(`${BASE_API_URL}/api/v1/auth/refresh`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ refresh_token: session.user.refreshToken }),
+              const refreshRes = await ky.post(`${BASE_API_URL}/api/v1/auth/refresh`, {
+                json: { refresh_token: session.user.refreshToken },
               });
 
               if (refreshRes.ok) {
-                const newTokens = await refreshRes.json();
+                const newTokens = await refreshRes.json<{ access_token: string; refresh_token: string }>();
                 session.user.accessToken = newTokens.access_token;
                 session.user.refreshToken = newTokens.refresh_token;
                 await session.save();
@@ -40,6 +38,7 @@ export const serverApi = ky.create({
                 });
               }
             } catch (err) {
+              console.error("Token refresh failed:", err);
             }
           }
         }

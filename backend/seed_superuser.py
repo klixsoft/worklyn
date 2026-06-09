@@ -34,6 +34,7 @@ async def recreate_and_seed():
         
         new_user = User(
             email=admin_email,
+            username="admin",
             hashed_password=hash_password(admin_pass),
             is_active=True,
             is_superuser=True,

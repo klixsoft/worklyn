@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://redis:6379/0"
     RABBITMQ_URL: str = "amqp://guest:guest@rabbitmq:5672/"
 
+    # S3 Storage Configuration
+    S3_BUCKET: str = "worklyn"
+    S3_ENDPOINT_URL: str | None = None
+    S3_ACCESS_KEY_ID: str | None = None
+    S3_SECRET_ACCESS_KEY: str | None = None
+    S3_REGION: str | None = None
+    S3_CUSTOM_DOMAIN: str | None = None
+
     model_config = SettingsConfigDict(
         case_sensitive=True,
         env_file=".env",

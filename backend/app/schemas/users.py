@@ -49,6 +49,7 @@ class RoleResponse(BaseModel):
 class UserCRUDResponse(BaseModel):
     id: str
     email: str
+    username: str
     is_active: bool
     is_superuser: bool
     is_staff: bool

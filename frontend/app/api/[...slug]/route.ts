@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getIronSession } from "iron-session";
-import { sessionOptions, SessionData } from "@/lib/session";
-import { BASE_API_URL } from "@/lib/api/base";
+import { serverApi } from "@/lib/api/server";
 
 async function proxyRequest(
   request: NextRequest,
@@ -9,20 +7,6 @@ async function proxyRequest(
 ) {
   const { slug } = await params;
   const path = slug.join("/");
-  const backendUrl = `${BASE_API_URL}/api/v1/${path}`;
-
-  const res = new Response();
-  const session = await getIronSession<SessionData>(request, res, sessionOptions);
-
-  const headers = new Headers();
-  const contentType = request.headers.get("Content-Type");
-  if (contentType) {
-    headers.set("Content-Type", contentType);
-  }
-
-  if (session?.user?.accessToken) {
-    headers.set("Authorization", `Bearer ${session.user.accessToken}`);
-  }
 
   const method = request.method;
   let body: string | undefined = undefined;
@@ -30,11 +14,18 @@ async function proxyRequest(
     body = await request.text();
   }
 
+  const headers: Record<string, string> = {};
+  const contentType = request.headers.get("Content-Type");
+  if (contentType) {
+    headers["Content-Type"] = contentType;
+  }
+
   try {
-    const backendRes = await fetch(backendUrl, {
+    const backendRes = await serverApi(path, {
       method,
       headers,
       body,
+      throwHttpErrors: false,
     });
 
     const resHeaders = new Headers();
