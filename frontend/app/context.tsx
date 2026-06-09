@@ -167,15 +167,15 @@ export interface WorkspaceContextType {
   isClockedIn: boolean;
   roles: string[];
   activeSoftware: SoftwareModule;
-  
+
   setActiveProjectId: (id: string | null) => void;
   setActiveTab: (tab: WorkspaceContextType["activeTab"]) => void;
   setActiveChannel: (id: string, type: "global" | "project" | "dm") => void;
   setActiveVoiceChannelId: (id: string | null) => void;
   setActiveSoftware: (sw: SoftwareModule) => void;
-  
+
   addProject: (name: string, description: string, icon: string, color: string) => void;
-  
+
   addTask: (projectId: string, columnId: string, taskData: Omit<Task, "id" | "comments" | "subtasks">) => void;
   updateTask: (projectId: string, columnId: string, taskId: string, updatedTask: Partial<Task>) => void;
   deleteTask: (projectId: string, columnId: string, taskId: string) => void;
@@ -183,18 +183,18 @@ export interface WorkspaceContextType {
   addSubtask: (projectId: string, columnId: string, taskId: string, title: string) => void;
   toggleSubtask: (projectId: string, columnId: string, taskId: string, subtaskId: string) => void;
   addComment: (projectId: string, columnId: string, taskId: string, text: string) => void;
-  
+
   addChannel: (projectId: string, name: string, type: "text" | "voice", assignedMemberIds?: string[]) => void;
   updateChannelMembers: (projectId: string, channelId: string, assignedMemberIds: string[]) => void;
   getProjectChannels: (projectId: string) => Channel[];
   extraChannels: Record<string, Channel[]>;
   sendMessage: (text: string, attachment?: { name: string; type: string; url: string }) => void;
   reactToMessage: (messageId: string, emoji: string) => void;
-  
+
   addDailyUpdate: (today: string, blockers: string, projectId?: string) => void;
-  
+
   toggleClock: () => void;
-  
+
   markAllNotificationsRead: () => void;
   markNotificationRead: (id: string) => void;
   addTeamMember: (name: string, role: string, avatar: string, status: "online" | "idle" | "offline") => void;
@@ -586,113 +586,6 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [teamMembers, setTeamMembers] = useState<User[]>(MOCK_TEAM_MEMBERS);
   const currentUser = MOCK_CURRENT_USER;
 
-  useEffect(() => {
-    const savedProjects = localStorage.getItem("pm_projects");
-    if (savedProjects) setProjects(JSON.parse(savedProjects));
-
-    const savedActiveProject = localStorage.getItem("pm_active_project_id");
-    if (savedActiveProject) setActiveProjectId(savedActiveProject);
-
-    const savedTab = localStorage.getItem("pm_active_tab");
-    if (savedTab) setActiveTab(savedTab as any);
-
-    const savedGlobalChannels = localStorage.getItem("pm_global_channels");
-    if (savedGlobalChannels) setGlobalChannels(JSON.parse(savedGlobalChannels));
-
-    const savedDirectMessages = localStorage.getItem("pm_direct_messages");
-    if (savedDirectMessages) setDirectMessages(JSON.parse(savedDirectMessages));
-
-    const savedDailyUpdates = localStorage.getItem("pm_daily_updates");
-    if (savedDailyUpdates) setDailyUpdates(JSON.parse(savedDailyUpdates));
-
-    const savedAttendanceLogs = localStorage.getItem("pm_attendance_logs");
-    if (savedAttendanceLogs) setAttendanceLogs(JSON.parse(savedAttendanceLogs));
-
-    const savedNotifications = localStorage.getItem("pm_notifications");
-    if (savedNotifications) setNotifications(JSON.parse(savedNotifications));
-
-    const savedActiveChannel = localStorage.getItem("pm_active_channel_id");
-    if (savedActiveChannel) setActiveChannelId(savedActiveChannel);
-
-    const savedActiveChannelType = localStorage.getItem("pm_active_channel_type");
-    if (savedActiveChannelType) setActiveChannelType(savedActiveChannelType as any);
-
-    const savedIsClockedIn = localStorage.getItem("pm_is_clocked_in");
-    if (savedIsClockedIn) setIsClockedIn(JSON.parse(savedIsClockedIn));
-
-    const savedTeamMembers = localStorage.getItem("pm_team_members");
-    if (savedTeamMembers) setTeamMembers(JSON.parse(savedTeamMembers));
-
-    const savedRoles = localStorage.getItem("pm_roles");
-    if (savedRoles) setRoles(JSON.parse(savedRoles));
-
-    const savedSoftware = localStorage.getItem("pm_active_software");
-    if (savedSoftware) setActiveSoftware(savedSoftware as SoftwareModule);
-
-    const savedRolePerms = localStorage.getItem("pm_role_permissions");
-    if (savedRolePerms) setRolePermissions(JSON.parse(savedRolePerms));
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("pm_projects", JSON.stringify(projects));
-  }, [projects]);
-
-  useEffect(() => {
-    if (activeProjectId) localStorage.setItem("pm_active_project_id", activeProjectId);
-  }, [activeProjectId]);
-
-  useEffect(() => {
-    localStorage.setItem("pm_active_tab", activeTab);
-  }, [activeTab]);
-
-  useEffect(() => {
-    localStorage.setItem("pm_global_channels", JSON.stringify(globalChannels));
-  }, [globalChannels]);
-
-  useEffect(() => {
-    localStorage.setItem("pm_direct_messages", JSON.stringify(directMessages));
-  }, [directMessages]);
-
-  useEffect(() => {
-    localStorage.setItem("pm_daily_updates", JSON.stringify(dailyUpdates));
-  }, [dailyUpdates]);
-
-  useEffect(() => {
-    localStorage.setItem("pm_attendance_logs", JSON.stringify(attendanceLogs));
-  }, [attendanceLogs]);
-
-  useEffect(() => {
-    localStorage.setItem("pm_notifications", JSON.stringify(notifications));
-  }, [notifications]);
-
-  useEffect(() => {
-    if (activeChannelId) localStorage.setItem("pm_active_channel_id", activeChannelId);
-  }, [activeChannelId]);
-
-  useEffect(() => {
-    localStorage.setItem("pm_active_channel_type", activeChannelType);
-  }, [activeChannelType]);
-
-  useEffect(() => {
-    localStorage.setItem("pm_is_clocked_in", JSON.stringify(isClockedIn));
-  }, [isClockedIn]);
-
-  useEffect(() => {
-    localStorage.setItem("pm_team_members", JSON.stringify(teamMembers));
-  }, [teamMembers]);
-
-  useEffect(() => {
-    localStorage.setItem("pm_roles", JSON.stringify(roles));
-  }, [roles]);
-
-  useEffect(() => {
-    localStorage.setItem("pm_active_software", activeSoftware);
-  }, [activeSoftware]);
-
-  useEffect(() => {
-    localStorage.setItem("pm_role_permissions", JSON.stringify(rolePermissions));
-  }, [rolePermissions]);
-
   const setActiveChannel = (id: string, type: "global" | "project" | "dm") => {
     setActiveChannelId(id);
     setActiveChannelType(type);
@@ -806,7 +699,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (proj.id !== projectId) return proj;
 
         let movedTask: Task | null = null;
-        
+
         const updatedColumns = proj.columns.map((col) => {
           if (col.id === sourceColumnId) {
             movedTask = col.tasks.find((t) => t.id === taskId) || null;
@@ -1027,7 +920,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (existingReactIdx > -1) {
           const react = reactions[existingReactIdx];
           const hasReacted = react.userIds.includes(currentUser.id);
-          
+
           if (hasReacted) {
             const newUserIds = react.userIds.filter((uid) => uid !== currentUser.id);
             if (newUserIds.length === 0) {
@@ -1159,7 +1052,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addDailyUpdate = (today: string, blockers: string, projectId?: string) => {
     const activeProjObj = projects.find((p) => p.id === projectId);
-    
+
     const newUpdate: DailyUpdate = {
       id: `up-${Date.now()}`,
       projectId,
@@ -1173,7 +1066,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     setDailyUpdates((prev) => [newUpdate, ...prev]);
-    
+
     const newNotif: Notification = {
       id: `not-${Date.now()}`,
       title: "Daily Update Submitted",
@@ -1207,7 +1100,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           const log = logs[activeLogIdx];
           const checkInDate = new Date(log.checkIn);
           const durationMin = Math.round((now.getTime() - checkInDate.getTime()) / (1000 * 60));
-          
+
           logs[activeLogIdx] = {
             ...log,
             checkOut: now.toISOString(),
@@ -1287,13 +1180,13 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           isClockedIn,
           roles,
           activeSoftware,
-          
+
           setActiveProjectId,
           setActiveTab,
           setActiveChannel,
           setActiveVoiceChannelId,
           setActiveSoftware,
-          
+
           addProject,
           addTask,
           updateTask,
@@ -1302,17 +1195,17 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           addSubtask,
           toggleSubtask,
           addComment,
-          
+
           addChannel,
           updateChannelMembers,
           getProjectChannels,
           extraChannels,
           sendMessage,
           reactToMessage,
-          
+
           addDailyUpdate,
           toggleClock,
-          
+
           markAllNotificationsRead,
           markNotificationRead,
           addTeamMember,
