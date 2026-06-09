@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
       email: userData.email,
       role: userData.role,
       permissions: userData.permissions,
+      accessToken: userData.access_token,
+      refreshToken: userData.refresh_token,
     };
     await session.save();
 

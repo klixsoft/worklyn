@@ -7,6 +7,8 @@ export interface SessionData {
     email: string;
     role: string;
     permissions: string[];
+    accessToken: string;
+    refreshToken: string;
   };
 }
 

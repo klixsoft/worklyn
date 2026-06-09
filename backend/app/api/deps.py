@@ -38,35 +38,88 @@ async def get_rabbitmq() -> AsyncGenerator[aio_pika.abc.AbstractConnection, None
 
 def verify_permission(required_permission: str):
     """
-    Validates request custom headers to verify permission capabilities.
+    Validates JWT and verifies that the authenticated user holds the requested permission capability.
     """
-    from fastapi import Header, HTTPException, status
+    import jwt
+    from fastapi import Depends, Header, HTTPException, status
     from typing import Optional
+    from sqlalchemy.future import select
+    from sqlalchemy.orm import selectinload
+    from app.core.security import decode_token
+    from app.models.auth import User, Role
 
-    def dependency(
-        x_user_id: Optional[str] = Header(None),
-        x_user_role: Optional[str] = Header(None),
-        x_user_permissions: Optional[str] = Header(None),
-    ) -> bool:
-        if not x_user_id:
+    async def dependency(
+        authorization: Optional[str] = Header(None),
+        db: AsyncSession = Depends(get_db),
+    ) -> User:
+        if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Not authenticated",
             )
-        permissions = x_user_permissions.split(",") if x_user_permissions else []
-        if x_user_role == "admin" or "*" in permissions:
-            return True
+        token = authorization.replace("Bearer ", "")
+        try:
+            payload = decode_token(token)
+            if payload.get("type") != "access":
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid token type",
+                )
+            user_id = payload.get("sub")
+            if not user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid token subject",
+                )
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has expired",
+            )
+        except jwt.PyJWTError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials",
+            )
+
+        stmt = (
+            select(User)
+            .where(User.id == user_id, User.is_active == True)
+            .options(selectinload(User.roles).selectinload(Role.permissions))
+        )
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found or inactive",
+            )
+
+        permissions = set()
+        user_roles_list = []
+        for role in user.roles:
+            user_roles_list.append(role.name)
+            for perm in role.permissions:
+                permissions.add(perm.name)
+
+        if "admin" in user_roles_list or "*" in permissions:
+            return user
+
         if required_permission in permissions:
-            return True
+            return user
+
         parts = required_permission.split(":")
         if len(parts) > 1:
             resource = parts[0]
             if f"{resource}:*" in permissions:
-                return True
+                return user
+
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Operation not permitted",
         )
 
     return dependency
+
+
 

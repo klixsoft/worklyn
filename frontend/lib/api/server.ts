@@ -8,19 +8,43 @@ export const serverApi = ky.create({
     beforeRequest: [
       async ({ request }) => {
         const session = await getSession();
-        if (session?.user) {
-          request.headers.set("x-user-id", session.user.id);
-          request.headers.set("x-user-role", session.user.role);
-          request.headers.set("x-user-permissions", session.user.permissions.join(","));
+        if (session?.user?.accessToken) {
+          request.headers.set("Authorization", `Bearer ${session.user.accessToken}`);
         }
       },
     ],
     afterResponse: [
-      async ({ response }) => {
-        if (response.status === 401) {
-          /**
-           * Refresh token handler for server-side requests can be executed here.
-           */
+      async ({ request, response, retryCount }) => {
+        if (response.status === 401 && retryCount === 0) {
+          const session = await getSession();
+          if (session?.user?.refreshToken) {
+            try {
+              const refreshRes = await fetch(`${BASE_API_URL}/api/v1/auth/refresh`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ refresh_token: session.user.refreshToken }),
+              });
+
+              if (refreshRes.ok) {
+                const newTokens = await refreshRes.json();
+                session.user.accessToken = newTokens.access_token;
+                session.user.refreshToken = newTokens.refresh_token;
+                await session.save();
+
+                const headers = new Headers(request.headers);
+                headers.set("Authorization", `Bearer ${newTokens.access_token}`);
+
+                return ky.retry({
+                  request: new Request(request, { headers }),
+                  code: "TOKEN_REFRESHED",
+                });
+              }
+            } catch (err) {
+              /**
+               * Failed token refresh can be logged or handled accordingly.
+               */
+            }
+          }
         }
       },
     ],
