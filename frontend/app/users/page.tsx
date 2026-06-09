@@ -13,9 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { Plus, MoreHorizontal, Pencil, Trash2, Users, Search } from "lucide-react";
 import { clientApi } from "@/lib/api/client";
@@ -39,6 +39,7 @@ interface User {
   email: string;
   is_active: boolean;
   is_superuser: boolean;
+  is_staff: boolean;
   first_name?: string;
   last_name?: string;
   phone_number?: string;
@@ -53,6 +54,7 @@ const userSchema = z.object({
   phone_number: z.string().optional(),
   is_active: z.boolean(),
   is_superuser: z.boolean(),
+  is_staff: z.boolean(),
   role_ids: z.array(z.string()).min(1, "At least one role must be assigned"),
 });
 
@@ -64,6 +66,11 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  
+  // Change Password Modal States
+  const [changingPasswordUser, setChangingPasswordUser] = useState<User | null>(null);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
 
   const { data: users = [], isLoading: loadingUsers } = useQuery<User[]>({
     queryKey: ["users"],
@@ -85,6 +92,7 @@ export default function UsersPage() {
       phone_number: "",
       is_active: true,
       is_superuser: false,
+      is_staff: false,
       role_ids: [],
     },
   });
@@ -99,6 +107,7 @@ export default function UsersPage() {
       phone_number: "",
       is_active: true,
       is_superuser: false,
+      is_staff: false,
       role_ids: [],
     },
   });
@@ -140,6 +149,20 @@ export default function UsersPage() {
     },
   });
 
+  const changePasswordMutation = useMutation({
+    mutationFn: ({ id, admin_password, new_password }: { id: string; admin_password: string; new_password: string }) =>
+      clientApi.post(`users/${id}/change-password`, { json: { admin_password, new_password } }).json(),
+    onSuccess: () => {
+      toast.success("Password changed successfully");
+      setChangingPasswordUser(null);
+      setAdminPassword("");
+      setNewPassword("");
+    },
+    onError: (err) => {
+      handleApiError(err);
+    },
+  });
+
   const handleCreateSubmit = React.useCallback((values: UserFormValues) => {
     createUserMutation.mutate(values);
   }, [createUserMutation]);
@@ -166,9 +189,20 @@ export default function UsersPage() {
       phone_number: user.phone_number || "",
       is_active: user.is_active,
       is_superuser: user.is_superuser,
+      is_staff: user.is_staff || false,
       role_ids: user.roles.map((r) => r.id),
     });
   }, [editForm]);
+
+  const handleChangePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!changingPasswordUser || !adminPassword || !newPassword) return;
+    changePasswordMutation.mutate({
+      id: changingPasswordUser.id,
+      admin_password: adminPassword,
+      new_password: newPassword,
+    });
+  };
 
   const filtered = users.filter(
     (u) =>
@@ -207,8 +241,8 @@ export default function UsersPage() {
         {[
           { label: "Total Users", value: users.length, color: "text-indigo-400" },
           { label: "Superusers", value: users.filter((u) => u.is_superuser).length, color: "text-green-400" },
+          { label: "Staff Members", value: users.filter((u) => u.is_staff).length, color: "text-violet-400" },
           { label: "Active", value: users.filter((u) => u.is_active).length, color: "text-amber-400" },
-          { label: "Suspended", value: users.filter((u) => !u.is_active).length, color: "text-rose-400" },
         ].map((stat) => (
           <Card key={stat.label} className="bg-card border-border text-foreground">
             <CardContent className="p-4 text-left">
@@ -269,14 +303,19 @@ export default function UsersPage() {
                           </AvatarFallback>
                         </Avatar>
                         <div className="text-left">
-                          <p className="text-sm font-semibold text-foreground leading-none">
-                            {user.first_name} {user.last_name}
+                          <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground leading-none">
+                            <span>{user.first_name} {user.last_name}</span>
                             {user.is_superuser && (
-                              <span className="ml-1.5 text-[9px] font-bold text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded">
+                              <span className="text-[9px] font-bold text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded">
                                 Superuser
                               </span>
                             )}
-                          </p>
+                            {user.is_staff && (
+                              <span className="text-[9px] font-bold text-violet-400 bg-violet-400/10 px-1.5 py-0.5 rounded">
+                                Staff
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
@@ -307,13 +346,20 @@ export default function UsersPage() {
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground w-36">
+                        <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground w-40">
                           <DropdownMenuItem
                             onClick={() => openEdit(user)}
                             className="text-xs gap-2 cursor-pointer hover:bg-muted"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                             Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setChangingPasswordUser(user)}
+                            className="text-xs gap-2 cursor-pointer hover:bg-muted"
+                          >
+                            <span className="h-3.5 w-3.5 flex items-center justify-center font-bold">🔑</span>
+                            Change Password
                           </DropdownMenuItem>
                           <DropdownMenuSeparator className="bg-border" />
                           <DropdownMenuItem
@@ -441,33 +487,50 @@ export default function UsersPage() {
                     </FormItem>
                   )}
                 />
-                <div className="flex items-center justify-between">
-                  <FormField
-                    control={createForm.control as never}
-                    name="is_superuser"
-                    render={({ field }) => (
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={field.value}
-                          onChange={(e) => field.onChange(e.target.checked)}
-                        />
-                        <span className="text-xs text-foreground font-semibold">Mark as Superuser</span>
-                      </label>
-                    )}
-                  />
+                <div className="flex flex-col gap-3 border border-border p-3 rounded-lg">
                   <FormField
                     control={createForm.control as never}
                     name="is_active"
                     render={({ field }) => (
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={field.value}
-                          onChange={(e) => field.onChange(e.target.checked)}
-                        />
-                        <span className="text-xs text-foreground font-semibold">Account Active</span>
-                      </label>
+                      <FormItem className="flex items-center justify-between space-y-0">
+                        <FormLabel className="text-xs font-semibold">Account Active</FormLabel>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={createForm.control as never}
+                    name="is_staff"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between space-y-0">
+                        <FormLabel className="text-xs font-semibold">Staff Member</FormLabel>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={createForm.control as never}
+                    name="is_superuser"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between space-y-0">
+                        <FormLabel className="text-xs font-semibold">Superuser</FormLabel>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
                     )}
                   />
                 </div>
@@ -537,19 +600,6 @@ export default function UsersPage() {
                 />
                 <FormField
                   control={editForm.control as never}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password (leave blank to keep unchanged)</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={editForm.control as never}
                   name="phone_number"
                   render={({ field }) => (
                     <FormItem>
@@ -592,33 +642,50 @@ export default function UsersPage() {
                     </FormItem>
                   )}
                 />
-                <div className="flex items-center justify-between">
-                  <FormField
-                    control={editForm.control as never}
-                    name="is_superuser"
-                    render={({ field }) => (
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={field.value}
-                          onChange={(e) => field.onChange(e.target.checked)}
-                        />
-                        <span className="text-xs text-foreground font-semibold">Mark as Superuser</span>
-                      </label>
-                    )}
-                  />
+                <div className="flex flex-col gap-3 border border-border p-3 rounded-lg">
                   <FormField
                     control={editForm.control as never}
                     name="is_active"
                     render={({ field }) => (
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={field.value}
-                          onChange={(e) => field.onChange(e.target.checked)}
-                        />
-                        <span className="text-xs text-foreground font-semibold">Account Active</span>
-                      </label>
+                      <FormItem className="flex items-center justify-between space-y-0">
+                        <FormLabel className="text-xs font-semibold">Account Active</FormLabel>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control as never}
+                    name="is_staff"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between space-y-0">
+                        <FormLabel className="text-xs font-semibold">Staff Member</FormLabel>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control as never}
+                    name="is_superuser"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between space-y-0">
+                        <FormLabel className="text-xs font-semibold">Superuser</FormLabel>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
                     )}
                   />
                 </div>
@@ -633,6 +700,52 @@ export default function UsersPage() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Password Dialog */}
+      <Dialog open={!!changingPasswordUser} onOpenChange={(o) => !o && setChangingPasswordUser(null)}>
+        <DialogContent className="bg-card border-border text-card-foreground sm:max-w-[400px] p-0 gap-0 overflow-hidden">
+          <DialogHeader className="p-4 border-b border-border text-left">
+            <DialogTitle className="text-lg font-bold">Change Password</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Verify your administrator credentials and set a new password for {changingPasswordUser?.email}.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleChangePasswordSubmit}>
+            <div className="p-4 space-y-4">
+              <div className="space-y-1.5 text-left">
+                <Label htmlFor="adminPassword">Your Admin Password</Label>
+                <Input
+                  id="adminPassword"
+                  type="password"
+                  placeholder="Confirm your credentials"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5 text-left">
+                <Label htmlFor="newPassword">New User Password</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  placeholder="Minimum 6 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter className="p-4 border-t border-border bg-card flex items-center justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setChangingPasswordUser(null)} className="text-muted-foreground hover:text-foreground cursor-pointer">
+                Cancel
+              </Button>
+              <Button type="submit" disabled={changePasswordMutation.isPending} className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold cursor-pointer">
+                {changePasswordMutation.isPending ? "Changing..." : "Change Password"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

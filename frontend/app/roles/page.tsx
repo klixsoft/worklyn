@@ -10,13 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, ShieldCheck, Pencil, Kanban, Users } from "lucide-react";
+import { Plus, Trash2, ShieldCheck, Pencil } from "lucide-react";
 import { clientApi } from "@/lib/api/client";
 import { handleApiError } from "@/lib/api/error-handler";
 import { useDeleteConfirmation } from "@/components/auth/delete-confirmation-context";
@@ -136,6 +135,25 @@ export default function RolesPage() {
       permission_ids: role.permissions.map((p) => p.id),
     });
   }, [editForm]);
+
+  // Group permissions by resource for the grid view
+  const groupedPermissions = React.useMemo(() => {
+    const groups: Record<string, { read?: Permission; create?: Permission; update?: Permission; delete?: Permission }> = {};
+    permissions.forEach((p) => {
+      const parts = p.name.split(":");
+      const resource = parts[0] || "General";
+      const action = parts[1] || "read";
+      
+      if (!groups[resource]) {
+        groups[resource] = {};
+      }
+      if (action === "read") groups[resource].read = p;
+      if (action === "create") groups[resource].create = p;
+      if (action === "update") groups[resource].update = p;
+      if (action === "delete") groups[resource].delete = p;
+    });
+    return groups;
+  }, [permissions]);
 
   return (
     <TooltipProvider>
@@ -271,11 +289,11 @@ export default function RolesPage() {
         </div>
 
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogContent className="bg-card border-border text-card-foreground sm:max-w-[420px] p-0 gap-0 overflow-hidden">
+          <DialogContent className="bg-card border-border text-card-foreground sm:max-w-[600px] p-0 gap-0 overflow-hidden">
             <DialogHeader className="p-4 border-b border-border text-left">
               <DialogTitle className="text-lg font-bold">Create Role</DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                Add a new role with specific permissions to your workspace.
+                Add a new role with specific module permissions to your workspace.
               </DialogDescription>
             </DialogHeader>
             <Form {...createForm}>
@@ -300,26 +318,89 @@ export default function RolesPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Configure Permissions</FormLabel>
-                        <div className="flex flex-col gap-2 border border-border p-3 rounded-lg max-h-48 overflow-y-auto">
-                          {permissions.map((p) => {
-                            const checked = field.value.includes(p.id);
-                            return (
-                              <label key={p.id} className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      field.onChange([...field.value, p.id]);
-                                    } else {
-                                      field.onChange(field.value.filter((id: string) => id !== p.id));
-                                    }
-                                  }}
-                                />
-                                <span className="text-xs">{p.name}</span>
-                              </label>
-                            );
-                          })}
+                        <div className="border border-border rounded-lg overflow-hidden">
+                          <Table>
+                            <TableHeader className="bg-muted/50">
+                              <TableRow className="border-border">
+                                <TableHead className="text-xs font-bold pl-4">Module / Resource</TableHead>
+                                <TableHead className="text-xs font-bold text-center">Read</TableHead>
+                                <TableHead className="text-xs font-bold text-center">Create</TableHead>
+                                <TableHead className="text-xs font-bold text-center">Update</TableHead>
+                                <TableHead className="text-xs font-bold text-center">Delete</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {Object.entries(groupedPermissions).map(([resource, actions]) => (
+                                <TableRow key={resource} className="border-border hover:bg-transparent">
+                                  <TableCell className="font-semibold capitalize text-xs pl-4">{resource}</TableCell>
+                                  <TableCell>
+                                    <div className="flex justify-center">
+                                      {actions.read && (
+                                        <Checkbox
+                                          checked={field.value.includes(actions.read.id)}
+                                          onCheckedChange={(checked) => {
+                                            if (checked) {
+                                              field.onChange([...field.value, actions.read!.id]);
+                                            } else {
+                                              field.onChange(field.value.filter((id: string) => id !== actions.read!.id));
+                                            }
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex justify-center">
+                                      {actions.create && (
+                                        <Checkbox
+                                          checked={field.value.includes(actions.create.id)}
+                                          onCheckedChange={(checked) => {
+                                            if (checked) {
+                                              field.onChange([...field.value, actions.create!.id]);
+                                            } else {
+                                              field.onChange(field.value.filter((id: string) => id !== actions.create!.id));
+                                            }
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex justify-center">
+                                      {actions.update && (
+                                        <Checkbox
+                                          checked={field.value.includes(actions.update.id)}
+                                          onCheckedChange={(checked) => {
+                                            if (checked) {
+                                              field.onChange([...field.value, actions.update!.id]);
+                                            } else {
+                                              field.onChange(field.value.filter((id: string) => id !== actions.update!.id));
+                                            }
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex justify-center">
+                                      {actions.delete && (
+                                        <Checkbox
+                                          checked={field.value.includes(actions.delete.id)}
+                                          onCheckedChange={(checked) => {
+                                            if (checked) {
+                                              field.onChange([...field.value, actions.delete!.id]);
+                                            } else {
+                                              field.onChange(field.value.filter((id: string) => id !== actions.delete!.id));
+                                            }
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
                         </div>
                         <FormMessage />
                       </FormItem>
@@ -340,7 +421,7 @@ export default function RolesPage() {
         </Dialog>
 
         <Dialog open={!!editingRole} onOpenChange={(o) => !o && setEditingRole(null)}>
-          <DialogContent className="bg-card border-border text-card-foreground sm:max-w-[420px] p-0 gap-0 overflow-hidden">
+          <DialogContent className="bg-card border-border text-card-foreground sm:max-w-[600px] p-0 gap-0 overflow-hidden">
             <DialogHeader className="p-4 border-b border-border text-left">
               <DialogTitle className="text-lg font-bold">Edit Role</DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
@@ -369,26 +450,89 @@ export default function RolesPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Configure Permissions</FormLabel>
-                        <div className="flex flex-col gap-2 border border-border p-3 rounded-lg max-h-48 overflow-y-auto">
-                          {permissions.map((p) => {
-                            const checked = field.value.includes(p.id);
-                            return (
-                              <label key={p.id} className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      field.onChange([...field.value, p.id]);
-                                    } else {
-                                      field.onChange(field.value.filter((id: string) => id !== p.id));
-                                    }
-                                  }}
-                                />
-                                <span className="text-xs">{p.name}</span>
-                              </label>
-                            );
-                          })}
+                        <div className="border border-border rounded-lg overflow-hidden">
+                          <Table>
+                            <TableHeader className="bg-muted/50">
+                              <TableRow className="border-border">
+                                <TableHead className="text-xs font-bold pl-4">Module / Resource</TableHead>
+                                <TableHead className="text-xs font-bold text-center">Read</TableHead>
+                                <TableHead className="text-xs font-bold text-center">Create</TableHead>
+                                <TableHead className="text-xs font-bold text-center">Update</TableHead>
+                                <TableHead className="text-xs font-bold text-center">Delete</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {Object.entries(groupedPermissions).map(([resource, actions]) => (
+                                <TableRow key={resource} className="border-border hover:bg-transparent">
+                                  <TableCell className="font-semibold capitalize text-xs pl-4">{resource}</TableCell>
+                                  <TableCell>
+                                    <div className="flex justify-center">
+                                      {actions.read && (
+                                        <Checkbox
+                                          checked={field.value.includes(actions.read.id)}
+                                          onCheckedChange={(checked) => {
+                                            if (checked) {
+                                              field.onChange([...field.value, actions.read!.id]);
+                                            } else {
+                                              field.onChange(field.value.filter((id: string) => id !== actions.read!.id));
+                                            }
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex justify-center">
+                                      {actions.create && (
+                                        <Checkbox
+                                          checked={field.value.includes(actions.create.id)}
+                                          onCheckedChange={(checked) => {
+                                            if (checked) {
+                                              field.onChange([...field.value, actions.create!.id]);
+                                            } else {
+                                              field.onChange(field.value.filter((id: string) => id !== actions.create!.id));
+                                            }
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex justify-center">
+                                      {actions.update && (
+                                        <Checkbox
+                                          checked={field.value.includes(actions.update.id)}
+                                          onCheckedChange={(checked) => {
+                                            if (checked) {
+                                              field.onChange([...field.value, actions.update!.id]);
+                                            } else {
+                                              field.onChange(field.value.filter((id: string) => id !== actions.update!.id));
+                                            }
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex justify-center">
+                                      {actions.delete && (
+                                        <Checkbox
+                                          checked={field.value.includes(actions.delete.id)}
+                                          onCheckedChange={(checked) => {
+                                            if (checked) {
+                                              field.onChange([...field.value, actions.delete!.id]);
+                                            } else {
+                                              field.onChange(field.value.filter((id: string) => id !== actions.delete!.id));
+                                            }
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
                         </div>
                         <FormMessage />
                       </FormItem>
