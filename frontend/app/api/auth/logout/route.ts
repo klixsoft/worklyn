@@ -3,9 +3,9 @@ import { getSession } from "@/lib/session";
 
 
 export async function POST(request: NextRequest) {
-  """
-  Destroys the user session and signs the user out.
-  """
+  /**
+   * Destroys the user session and signs the user out.
+   */
   const session = await getSession();
   session.destroy();
   return NextResponse.json({ success: true });
