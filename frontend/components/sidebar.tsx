@@ -4,8 +4,10 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useWorkspace } from "@/app/context";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { clientApi } from "@/lib/api/client";
+import { handleApiError } from "@/lib/api/error-handler";
 import {
   Hash,
   Plus,
@@ -105,6 +107,15 @@ const SOFTWARE_MODULES = [
   },
 ];
 
+interface ProjectResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export const Sidebar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -129,9 +140,31 @@ export const Sidebar: React.FC = () => {
     setActiveSoftware,
   } = useWorkspace();
 
-  const { data: dbProjects = [] } = useQuery({
+  const queryClient = useQueryClient();
+
+  const { data: dbProjects = [] } = useQuery<ProjectResponse[]>({
     queryKey: ["projects"],
-    queryFn: () => clientApi.get("projects").json() as Promise<any[]>,
+    queryFn: () => clientApi.get("projects").json(),
+  });
+
+  const createProjectMutation = useMutation({
+    mutationFn: (newProject: { name: string; description: string }) =>
+      clientApi.post("projects", { json: newProject }).json<ProjectResponse>(),
+    onSuccess: (newProj) => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      toast.success("Project space created successfully");
+      setIsNewProjectOpen(false);
+      setProjName("");
+      setProjDesc("");
+      setProjIcon("📁");
+      setProjColor("bg-indigo-600");
+      if (newProj && newProj.id) {
+        router.push(`/projects/${newProj.id}`);
+      }
+    },
+    onError: (err: unknown) => {
+      handleApiError(err);
+    }
   });
 
   const currentProjectId = useMemo(() => {
@@ -201,13 +234,11 @@ export const Sidebar: React.FC = () => {
   const handleCreateProject = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!projName.trim()) return;
-    addProject(projName, projDesc, projIcon, projColor);
-    setProjName("");
-    setProjDesc("");
-    setProjIcon("📁");
-    setProjColor("bg-indigo-600");
-    setIsNewProjectOpen(false);
-  }, [projName, projDesc, projIcon, projColor, addProject]);
+    createProjectMutation.mutate({
+      name: projName.trim(),
+      description: projDesc.trim(),
+    });
+  }, [projName, projDesc, createProjectMutation]);
 
   const handleCreateChannel = useCallback((e: React.FormEvent) => {
     e.preventDefault();
