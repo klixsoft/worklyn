@@ -34,13 +34,16 @@ async def health_check(response: Response):
         details["redis"] = f"unhealthy: {str(e)}"
         is_healthy = False
 
-    try:
-        connection = await aio_pika.connect_robust(settings.RABBITMQ_URL, timeout=3.0)
-        await connection.close()
-        details["rabbitmq"] = "healthy"
-    except Exception as e:
-        details["rabbitmq"] = f"unhealthy: {str(e)}"
-        is_healthy = False
+    if settings.APP_ENV != "development":
+        try:
+            connection = await aio_pika.connect_robust(settings.RABBITMQ_URL, timeout=3.0)
+            await connection.close()
+            details["rabbitmq"] = "healthy"
+        except Exception as e:
+            details["rabbitmq"] = f"unhealthy: {str(e)}"
+            is_healthy = False
+    else:
+        details["rabbitmq"] = "skipped (development)"
 
     if not is_healthy:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE

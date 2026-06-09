@@ -1,4 +1,4 @@
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 import aio_pika
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,10 +25,13 @@ async def get_redis() -> AsyncGenerator[redis.Redis, None]:
         await client.close()
 
 
-async def get_rabbitmq() -> AsyncGenerator[aio_pika.abc.AbstractConnection, None]:
+async def get_rabbitmq() -> AsyncGenerator[Optional[aio_pika.abc.AbstractConnection], None]:
     """
     Yields a robust RabbitMQ connection and closes it upon completion.
     """
+    if settings.APP_ENV == "development":
+        yield None
+        return
     connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
     try:
         yield connection
