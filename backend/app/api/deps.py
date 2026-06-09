@@ -34,3 +34,39 @@ async def get_rabbitmq() -> AsyncGenerator[aio_pika.abc.AbstractConnection, None
         yield connection
     finally:
         await connection.close()
+
+
+def verify_permission(required_permission: str):
+    """
+    Validates request custom headers to verify permission capabilities.
+    """
+    from fastapi import Header, HTTPException, status
+    from typing import Optional
+
+    def dependency(
+        x_user_id: Optional[str] = Header(None),
+        x_user_role: Optional[str] = Header(None),
+        x_user_permissions: Optional[str] = Header(None),
+    ) -> bool:
+        if not x_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated",
+            )
+        permissions = x_user_permissions.split(",") if x_user_permissions else []
+        if x_user_role == "admin" or "*" in permissions:
+            return True
+        if required_permission in permissions:
+            return True
+        parts = required_permission.split(":")
+        if len(parts) > 1:
+            resource = parts[0]
+            if f"{resource}:*" in permissions:
+                return True
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Operation not permitted",
+        )
+
+    return dependency
+

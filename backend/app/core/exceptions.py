@@ -1,4 +1,5 @@
-from fastapi import Request, status
+from fastapi import HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 
@@ -37,5 +38,31 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
     """
     return JSONResponse(
         status_code=exc.status_code,
-        content={"detail": exc.message, "status": "error"},
+        content={"success": False, "errors": {"non_field_errors": exc.message}},
+    )
+
+
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """
+    Standardizes validation error responses to key them by their failing fields.
+    """
+    errors = {}
+    for error in exc.errors():
+        loc = error.get("loc", [])
+        field_name = str(loc[-1]) if loc else "non_field_errors"
+        errors[field_name] = error.get("msg", "Validation error")
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"success": False, "errors": errors},
+    )
+
+
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    """
+    Standardizes HTTP exception responses into non-field error payloads.
+    """
+    detail = exc.detail if isinstance(exc.detail, str) else "An error occurred"
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"success": False, "errors": {"non_field_errors": detail}},
     )
