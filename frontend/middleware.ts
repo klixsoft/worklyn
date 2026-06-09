@@ -5,9 +5,9 @@ import { sessionOptions } from "@/lib/session";
 
 
 export async function middleware(request: NextRequest) {
-  """
-  Intercepts requests to enforce user authentication across protected dashboard routes.
-  """
+  /**
+   * Intercepts requests to enforce user authentication across protected dashboard routes.
+   */
   const res = NextResponse.next();
   const session = await getIronSession<{ user?: any }>(request, res, sessionOptions);
   const { pathname } = request.nextUrl;

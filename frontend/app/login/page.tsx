@@ -6,9 +6,9 @@ import { Sparkles, ArrowRight, Lock, Mail, Loader2 } from "lucide-react";
 
 
 export default function LoginPage() {
-  """
-  Renders the login UI and handles client-side form validation and submission.
-  """
+  /**
+   * Renders the login UI and handles client-side form validation and submission.
+   */
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
