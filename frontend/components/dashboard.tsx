@@ -302,7 +302,7 @@ export const Dashboard: React.FC = () => {
         const totalTasks = donutSeries.reduce((a, b) => a + b, 0);
 
         return (
-          <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          <div className="my-6 grid gap-4 lg:grid-cols-3">
 
             {/* Donut — Task Distribution */}
             <Card className="bg-card border-border text-foreground">
@@ -427,7 +427,6 @@ export const Dashboard: React.FC = () => {
       })()}
 
       <div className="grid gap-6 lg:grid-cols-3">
-
         <Card className="lg:col-span-2 bg-card border-border text-foreground flex flex-col">
           <CardHeader className="border-b border-border pb-3 flex flex-row items-center justify-between">
             <div className="text-left">
@@ -550,69 +549,6 @@ export const Dashboard: React.FC = () => {
 
         </div>
 
-      </div>
-
-      <div className="mt-6">
-        <Card className="bg-card border-border text-foreground">
-          <CardHeader className="border-b border-border pb-3 flex flex-row items-center justify-between">
-            <div className="text-left">
-              <CardTitle className="text-base text-foreground">Recent Team Updates</CardTitle>
-              <CardDescription className="text-xs text-muted-foreground">Daily standup summaries posted today</CardDescription>
-            </div>
-            <button
-              onClick={() => setActiveTab("updates")}
-              className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-0.5 cursor-pointer"
-            >
-              All Standups
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
-          </CardHeader>
-          <CardContent className="p-0 overflow-x-auto">
-            {dailyUpdates.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Activity className="h-8 w-8 text-muted-foreground/40 mb-2" />
-                <p className="text-xs text-muted-foreground">No daily standups submitted for today yet.</p>
-              </div>
-            ) : (
-              <div className="grid gap-4 p-4 md:grid-cols-2">
-                {dailyUpdates.slice(0, 4).map((up) => (
-                  <div key={up.id} className="rounded-lg bg-background p-4 border border-border space-y-2 flex flex-col justify-between">
-                    <div className="space-y-2 text-left">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={up.userAvatar} />
-                          <AvatarFallback>{up.userName[0]}</AvatarFallback>
-                        </Avatar>
-                        <div className="text-left">
-                          <h5 className="text-sm text-foreground">{up.userName}</h5>
-                          {up.projectName && (
-                            <p className="text-[10px] text-muted-foreground font-semibold">{up.projectName}</p>
-                          )}
-                        </div>
-                        <span className="ml-auto text-[10px] text-muted-foreground">{up.date}</span>
-                      </div>
-
-                      <div className="space-y-1.5 text-xs">
-                        <div className="space-y-1">
-                          <span className="font-semibold text-foreground text-[10px]">Today's Focus:</span>
-                          <div className="pl-2 border-l border-indigo-500/50">
-                            <MarkdownViewer text={up.today} />
-                          </div>
-                        </div>
-                        {up.blockers && up.blockers !== "None." && up.blockers !== "None" && (
-                          <p className="text-rose-400/90 leading-normal flex items-start gap-1">
-                            <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                            <span><span className="font-semibold">Blocker:</span> {up.blockers}</span>
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
       <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>

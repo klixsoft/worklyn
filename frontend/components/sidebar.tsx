@@ -184,21 +184,24 @@ export const Sidebar: React.FC = () => {
       id: "pm" as const,
       label: "Project Management",
       icon: <Kanban className="h-5 w-5" />,
-      color: "bg-indigo-600",
+      activeClass: "bg-indigo-600 text-white ring-2 ring-indigo-500 ring-offset-2 ring-offset-background",
+      inactiveClass: "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20",
       route: "/dashboard",
     },
     {
       id: "finance" as const,
       label: "Finance Suite",
       icon: <DollarSign className="h-5 w-5" />,
-      color: "bg-emerald-600",
+      activeClass: "bg-emerald-600 text-white ring-2 ring-emerald-500 ring-offset-2 ring-offset-background",
+      inactiveClass: "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20",
       route: "/finance",
     },
     {
       id: "hr" as const,
       label: "HR Management",
       icon: <UserCog className="h-5 w-5" />,
-      color: "bg-violet-600",
+      activeClass: "bg-violet-600 text-white ring-2 ring-violet-500 ring-offset-2 ring-offset-background",
+      inactiveClass: "bg-violet-500/10 text-violet-500 hover:bg-violet-500/20",
       route: "/hr",
     },
   ];
@@ -208,8 +211,7 @@ export const Sidebar: React.FC = () => {
 
       <div className="flex w-[72px] flex-col items-center gap-2 bg-background py-3 text-foreground border-r border-border">
 
-        {/* Software Switcher */}
-        <div className="flex flex-col items-center gap-1.5 w-full px-2">
+        <div className="flex flex-col items-center gap-3 w-full px-2">
           {SOFTWARE_MODULES.map((sw) => {
             const isActive = activeSoftware === sw.id;
             return (
@@ -225,17 +227,10 @@ export const Sidebar: React.FC = () => {
                       }
                     }}
                     className={cn(
-                      "group relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl transition-all duration-200 hover:rounded-lg",
-                      isActive
-                        ? `${sw.color} text-white rounded-lg`
-                        : "bg-muted text-muted-foreground hover:text-white",
-                      isActive && sw.color
+                      "flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl transition-all duration-200",
+                      isActive ? sw.activeClass : sw.inactiveClass
                     )}
                   >
-                    <div className={cn(
-                      "absolute -left-2 h-4 w-1.5 rounded-r transition-all duration-200 scale-0 origin-left group-hover:scale-100 bg-foreground",
-                      isActive && "h-7 scale-100"
-                    )} />
                     {sw.icon}
                   </button>
                 </TooltipTrigger>
@@ -247,28 +242,23 @@ export const Sidebar: React.FC = () => {
           })}
         </div>
 
-        <div className="h-[2px] w-8 rounded bg-border my-1" />
-
-        {/* Global Home / Projects (PM only) */}
         {activeSoftware === "pm" && (
           <>
+            <div className="h-[2px] w-8 rounded bg-border my-2" />
+
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
                   onClick={() => selectProject(null)}
                   className={cn(
-                    "group relative flex h-12 w-12 cursor-pointer items-center justify-center rounded-[24px] bg-muted transition-all duration-200 hover:rounded-[16px] hover:bg-indigo-600",
-                    isGlobalActive && "rounded-[16px] bg-indigo-600"
+                    "flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl transition-all duration-200 bg-muted hover:bg-indigo-600 hover:text-white",
+                    isGlobalActive && "bg-indigo-600 ring-2 ring-indigo-500 ring-offset-2 ring-offset-background"
                   )}
                 >
-                  <div className={cn(
-                    "absolute -left-3 h-5 w-2 rounded-r bg-foreground transition-all duration-200 scale-0 origin-left group-hover:scale-100",
-                    isGlobalActive && "h-10 scale-100"
-                  )} />
                   <img
                     src="https://klixsoft.com/images/logo.svg"
                     alt="Klixsoft Logo"
-                    className="h-7 w-7 transition-all duration-200 group-hover:scale-110"
+                    className="h-6 w-6"
                   />
                 </div>
               </TooltipTrigger>
@@ -276,197 +266,190 @@ export const Sidebar: React.FC = () => {
                 Global Portal Dashboard
               </TooltipContent>
             </Tooltip>
-          </>
-        )}
 
-        <div className="h-[2px] w-8 rounded bg-border my-1" />
+            <div className="h-[2px] w-8 rounded bg-border my-2" />
 
-        <div className="flex flex-1 w-full flex-col items-center gap-2 overflow-y-auto scrollbar-none">
-          {activeSoftware === "pm" && projects.map((proj) => {
-            const isActive = !isGlobalActive && activeProjectId === proj.id;
-            const isCustomColor = !proj.color.startsWith("bg-");
-            const isHovered = hoveredProjectId === proj.id;
-            const isHighlighted = isActive || isHovered;
-            return (
-              <Tooltip key={proj.id}>
-                <TooltipTrigger asChild>
-                  <div
-                    onClick={() => selectProject(proj.id)}
-                    onMouseEnter={() => setHoveredProjectId(proj.id)}
-                    onMouseLeave={() => setHoveredProjectId(null)}
-                    className={cn(
-                      "group relative flex h-12 w-12 cursor-pointer items-center justify-center rounded-[24px] text-lg font-bold transition-all duration-200 hover:rounded-[16px]",
-                      isActive ? "rounded-[16px] text-white" : "text-muted-foreground bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "absolute -left-3 h-2 w-2 rounded-r bg-foreground transition-all duration-200 scale-0 origin-left group-hover:scale-100 group-hover:h-5",
-                        isActive && "h-10 scale-100",
-                        isActive && !isCustomColor && proj.color,
-                        isActive && isCustomColor ? "" : "bg-indigo-500"
-                      )}
-                      style={isActive && isCustomColor ? { backgroundColor: proj.color } : undefined}
-                    />
-
-                    <div
-                      className={cn(
-                        "flex h-full w-full items-center justify-center rounded-[24px] transition-all duration-200 group-hover:rounded-[16px]",
-                        isHighlighted
-                          ? (isCustomColor ? "" : proj.color)
-                          : "bg-muted text-muted-foreground"
-                      )}
-                      style={isHighlighted && isCustomColor ? { backgroundColor: proj.color } : undefined}
-                    >
-                      {proj.icon}
-                    </div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="bg-popover border border-border text-popover-foreground font-semibold font-sans">
-                  {proj.name}
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-
-          <Dialog open={isNewProjectOpen} onOpenChange={setIsNewProjectOpen}>
-            <DialogTrigger asChild>
-              <button className="group flex h-12 w-12 cursor-pointer items-center justify-center rounded-[24px] bg-muted text-green-500 transition-all duration-200 hover:rounded-[16px] hover:bg-green-600 hover:text-white">
-                <Plus className="h-6 w-6" />
-              </button>
-            </DialogTrigger>
-            <DialogContent className="bg-card border-border text-card-foreground sm:max-w-[440px] max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
-              <DialogHeader className="p-4 border-b border-border/60 shrink-0">
-                <DialogTitle className="text-xl font-bold tracking-tight">Create a Project Space</DialogTitle>
-                <DialogDescription className="text-muted-foreground text-xs">
-                  Setup a dedicated collaborative space for your project board and communication channels.
-                </DialogDescription>
-              </DialogHeader>
-
-              <form onSubmit={handleCreateProject} className="flex flex-col flex-1 gap-0 overflow-hidden">
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-zinc-800">
-                  {/* Dynamic Live Avatar Preview */}
-                  <div className="flex items-center gap-4 bg-background/40 p-4 rounded-xl border border-border/60 mb-2 mt-2">
-                    <div
-                      className={cn(
-                        "flex h-16 w-16 items-center justify-center rounded-2xl text-3xl transition-all border border-border/50 shrink-0",
-                        projColor.startsWith("bg-") ? projColor : ""
-                      )}
-                      style={!projColor.startsWith("bg-") ? { backgroundColor: projColor } : undefined}
-                    >
-                      {projIcon || "📁"}
-                    </div>
-                    <div className="space-y-1 min-w-0">
-                      <div className="text-[10px] text-muted-foreground/60 font-bold">Space Avatar Preview</div>
-                      <div className="text-base font-semibold text-foreground truncate">{projName || "New Project Space"}</div>
-                      <div className="text-xs text-muted-foreground truncate">{projDesc || "No description yet..."}</div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-xs font-normal text-foreground/80">Project Name</Label>
-                    <Input
-                      required
-                      value={projName}
-                      onChange={(e) => setProjName(e.target.value)}
-                      placeholder="e.g. Marketing Sprints, SpaceX App"
-                      className="bg-background border-border text-foreground focus:border-indigo-600"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-xs font-normal text-foreground/80">Description</Label>
-                    <Textarea
-                      value={projDesc}
-                      onChange={(e) => setProjDesc(e.target.value)}
-                      placeholder="Brief objective of this space..."
-                      className="bg-background border-border text-foreground focus:border-indigo-600 h-16 resize-none"
-                    />
-                  </div>
-
-                  {/* Emoji Grid Selector with Custom input */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <Label className="text-xs font-normal text-foreground/80">Choose Icon / Emoji</Label>
-                      <Input
-                        type="text"
-                        maxLength={2}
-                        placeholder="Custom"
-                        value={EMOJIS.includes(projIcon) ? "" : projIcon}
-                        onChange={(e) => setProjIcon(e.target.value || "📁")}
-                        className="w-20 h-7 text-xs text-center bg-background border-border text-foreground placeholder:text-muted-foreground/60 focus:border-indigo-600"
-                      />
-                    </div>
-                    <div className="grid grid-cols-6 gap-2 max-h-[110px] overflow-y-auto p-2 bg-background rounded-lg border border-border">
-                      {EMOJIS.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => setProjIcon(emoji)}
-                          className={cn(
-                            "h-9 w-9 text-xl flex items-center justify-center rounded-lg hover:bg-muted transition-all cursor-pointer",
-                            projIcon === emoji && "bg-indigo-600/30 border border-indigo-500 scale-105"
-                          )}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Color Palette + HTML5 Color Picker */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-normal text-foreground/80">Theme Color</Label>
-                    <div className="flex flex-wrap items-center gap-2 bg-background p-2.5 rounded-lg border border-border">
-                      {PRESET_COLORS.map((color) => (
-                        <button
-                          key={color.value}
-                          type="button"
-                          onClick={() => setProjColor(color.value)}
-                          className={cn(
-                            "h-7 w-7 rounded-full border border-black/40 relative flex items-center justify-center cursor-pointer transition-transform hover:scale-110 shrink-0",
-                            color.value
-                          )}
-                        >
-                          {projColor === color.value && (
-                            <div className="h-2.5 w-2.5 rounded-full bg-white" />
-                          )}
-                        </button>
-                      ))}
-
-                      {/* Custom Color Selector */}
-                      <div className="relative flex items-center gap-2 ml-auto border-l border-border pl-3 shrink-0">
-                        <span className="text-[10px] text-muted-foreground font-medium">Custom</span>
-                        <input
-                          type="color"
-                          value={projColor.startsWith("bg-") ? "#6366f1" : projColor}
-                          onChange={(e) => setProjColor(e.target.value)}
-                          className="h-7 w-7 rounded-full cursor-pointer bg-transparent border border-border outline-none overflow-hidden p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-0 [&::-webkit-color-swatch]:rounded-full [&::-moz-color-swatch]:border-0 [&::-moz-color-swatch]:rounded-full"
-                        />
-                        {!projColor.startsWith("bg-") && (
-                          <div
-                            className="absolute bottom-[-2px] right-[-2px] h-3.5 w-3.5 rounded-full bg-indigo-500 border border-background flex items-center justify-center"
-                          >
-                            <Check className="h-2.5 w-2.5 text-white" />
-                          </div>
+            <div className="flex flex-1 w-full flex-col items-center gap-4 overflow-y-auto scrollbar-none px-2">
+              {projects.map((proj) => {
+                const isActive = !isGlobalActive && activeProjectId === proj.id;
+                const isCustomColor = !proj.color.startsWith("bg-");
+                const isHovered = hoveredProjectId === proj.id;
+                const isHighlighted = isActive || isHovered;
+                return (
+                  <Tooltip key={proj.id}>
+                    <TooltipTrigger asChild>
+                      <div
+                        onClick={() => selectProject(proj.id)}
+                        onMouseEnter={() => setHoveredProjectId(proj.id)}
+                        onMouseLeave={() => setHoveredProjectId(null)}
+                        className={cn(
+                          "flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl text-base font-bold transition-all duration-200",
+                          isActive
+                            ? "text-white ring-2 ring-offset-2 ring-offset-background ring-indigo-500"
+                            : "bg-muted text-muted-foreground hover:text-foreground"
                         )}
+                      >
+                        <div
+                          className={cn(
+                            "flex h-full w-full items-center justify-center rounded-xl transition-all duration-200",
+                            isHighlighted
+                              ? (isCustomColor ? "" : proj.color)
+                              : "bg-muted"
+                          )}
+                          style={isHighlighted && isCustomColor ? { backgroundColor: proj.color } : undefined}
+                        >
+                          {proj.icon}
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="bg-popover border border-border text-popover-foreground font-semibold font-sans">
+                      {proj.name}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+
+              {/* Add Project button */}
+              <Dialog open={isNewProjectOpen} onOpenChange={setIsNewProjectOpen}>
+                <DialogTrigger asChild>
+                  <button className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl bg-muted text-muted-foreground transition-all duration-200 hover:bg-green-600 hover:text-white">
+                    <Plus className="h-5 w-5" />
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="bg-card border-border text-card-foreground sm:max-w-[440px] max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+                  <DialogHeader className="p-4 border-b border-border/60 shrink-0">
+                    <DialogTitle className="text-xl font-bold tracking-tight">Create a Project Space</DialogTitle>
+                    <DialogDescription className="text-muted-foreground text-xs">
+                      Setup a dedicated collaborative space for your project board and communication channels.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <form onSubmit={handleCreateProject} className="flex flex-col flex-1 gap-0 overflow-hidden">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-zinc-800">
+                      {/* Dynamic Live Avatar Preview */}
+                      <div className="flex items-center gap-4 bg-background/40 p-4 rounded-xl border border-border/60 mb-2 mt-2">
+                        <div
+                          className={cn(
+                            "flex h-16 w-16 items-center justify-center rounded-2xl text-3xl transition-all border border-border/50 shrink-0",
+                            projColor.startsWith("bg-") ? projColor : ""
+                          )}
+                          style={!projColor.startsWith("bg-") ? { backgroundColor: projColor } : undefined}
+                        >
+                          {projIcon || "📁"}
+                        </div>
+                        <div className="space-y-1 min-w-0">
+                          <div className="text-[10px] text-muted-foreground/60 font-bold">Space Avatar Preview</div>
+                          <div className="text-base font-semibold text-foreground truncate">{projName || "New Project Space"}</div>
+                          <div className="text-xs text-muted-foreground truncate">{projDesc || "No description yet..."}</div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs font-normal text-foreground/80">Project Name</Label>
+                        <Input
+                          required
+                          value={projName}
+                          onChange={(e) => setProjName(e.target.value)}
+                          placeholder="e.g. Marketing Sprints, SpaceX App"
+                          className="bg-background border-border text-foreground focus:border-indigo-600"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs font-normal text-foreground/80">Description</Label>
+                        <Textarea
+                          value={projDesc}
+                          onChange={(e) => setProjDesc(e.target.value)}
+                          placeholder="Brief objective of this space..."
+                          className="bg-background border-border text-foreground focus:border-indigo-600 h-16 resize-none"
+                        />
+                      </div>
+
+                      {/* Emoji Grid Selector with Custom input */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <Label className="text-xs font-normal text-foreground/80">Choose Icon / Emoji</Label>
+                          <Input
+                            type="text"
+                            maxLength={2}
+                            placeholder="Custom"
+                            value={EMOJIS.includes(projIcon) ? "" : projIcon}
+                            onChange={(e) => setProjIcon(e.target.value || "📁")}
+                            className="w-20 h-7 text-xs text-center bg-background border-border text-foreground placeholder:text-muted-foreground/60 focus:border-indigo-600"
+                          />
+                        </div>
+                        <div className="grid grid-cols-6 gap-2 max-h-[110px] overflow-y-auto p-2 bg-background rounded-lg border border-border">
+                          {EMOJIS.map((emoji) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => setProjIcon(emoji)}
+                              className={cn(
+                                "h-9 w-9 text-xl flex items-center justify-center rounded-lg hover:bg-muted transition-all cursor-pointer",
+                                projIcon === emoji && "bg-indigo-600/30 border border-indigo-500 scale-105"
+                              )}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Color Palette + HTML5 Color Picker */}
+                      <div className="space-y-2">
+                        <Label className="text-xs font-normal text-foreground/80">Theme Color</Label>
+                        <div className="flex flex-wrap items-center gap-2 bg-background p-2.5 rounded-lg border border-border">
+                          {PRESET_COLORS.map((color) => (
+                            <button
+                              key={color.value}
+                              type="button"
+                              onClick={() => setProjColor(color.value)}
+                              className={cn(
+                                "h-7 w-7 rounded-full border border-black/40 relative flex items-center justify-center cursor-pointer transition-transform hover:scale-110 shrink-0",
+                                color.value
+                              )}
+                            >
+                              {projColor === color.value && (
+                                <div className="h-2.5 w-2.5 rounded-full bg-white" />
+                              )}
+                            </button>
+                          ))}
+
+                          {/* Custom Color Selector */}
+                          <div className="relative flex items-center gap-2 ml-auto border-l border-border pl-3 shrink-0">
+                            <span className="text-[10px] text-muted-foreground font-medium">Custom</span>
+                            <input
+                              type="color"
+                              value={projColor.startsWith("bg-") ? "#6366f1" : projColor}
+                              onChange={(e) => setProjColor(e.target.value)}
+                              className="h-7 w-7 rounded-full cursor-pointer bg-transparent border border-border outline-none overflow-hidden p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-0 [&::-webkit-color-swatch]:rounded-full [&::-moz-color-swatch]:border-0 [&::-moz-color-swatch]:rounded-full"
+                            />
+                            {!projColor.startsWith("bg-") && (
+                              <div
+                                className="absolute bottom-[-2px] right-[-2px] h-3.5 w-3.5 rounded-full bg-indigo-500 border border-background flex items-center justify-center"
+                              >
+                                <Check className="h-2.5 w-2.5 text-white" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                <DialogFooter className="p-4 border-t border-border bg-card shrink-0">
-                  <Button type="button" variant="ghost" onClick={() => setIsNewProjectOpen(false)} className="text-muted-foreground hover:text-foreground cursor-pointer">
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold cursor-pointer">
-                    Create Space
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+                    <DialogFooter className="p-4 border-t border-border bg-card shrink-0">
+                      <Button type="button" variant="ghost" onClick={() => setIsNewProjectOpen(false)} className="text-muted-foreground hover:text-foreground cursor-pointer">
+                        Cancel
+                      </Button>
+                      <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold cursor-pointer">
+                        Create Space
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </>
+        )}
 
         <div className="mt-auto flex flex-col items-center gap-3">
           <Tooltip>
@@ -490,10 +473,11 @@ export const Sidebar: React.FC = () => {
               </div>
             </TooltipTrigger>
             <TooltipContent side="right" className="bg-popover border border-border text-popover-foreground font-semibold font-sans">
-              Help & Resources
+              Help &amp; Resources
             </TooltipContent>
           </Tooltip>
         </div>
+
       </div>
 
       <div className="flex w-60 flex-col bg-sidebar border-r border-border">
@@ -513,14 +497,13 @@ export const Sidebar: React.FC = () => {
             />
           </div>
 
-          {/* ── Global Actions ── */}
           <div className="space-y-0.5 mt-4">
             <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">Global Actions</p>
 
             {[
               { href: "/dashboard", icon: <LayoutDashboard className="h-4 w-4 shrink-0" />, label: "Dashboard", active: pathname === "/dashboard" },
-              { href: "/updates",   icon: <ClipboardList  className="h-4 w-4 shrink-0" />, label: "Daily Updates", active: pathname === "/updates" },
-              ...( !(activeProject && !isGlobalActive) ? [{ href: "/attendance", icon: <Clock className="h-4 w-4 shrink-0" />, label: "Attendance Clock", active: pathname === "/attendance" }] : []),
+              { href: "/updates", icon: <ClipboardList className="h-4 w-4 shrink-0" />, label: "Daily Updates", active: pathname === "/updates" },
+              ...(!(activeProject && !isGlobalActive) ? [{ href: "/attendance", icon: <Clock className="h-4 w-4 shrink-0" />, label: "Attendance Clock", active: pathname === "/attendance" }] : []),
             ].map((item) => (
               <Link
                 key={item.href}
@@ -538,7 +521,6 @@ export const Sidebar: React.FC = () => {
             ))}
           </div>
 
-          {/* ── People & Access (global only) ── */}
           {isGlobalActive && (
             <div className="space-y-0.5 pt-3 border-t border-border/60">
               <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">People &amp; Access</p>
@@ -564,7 +546,6 @@ export const Sidebar: React.FC = () => {
             </div>
           )}
 
-          {/* ── Project Board (project view only) ── */}
           {activeProject && !isGlobalActive && (
             <div className="space-y-0.5 pt-3 border-t border-border/60">
               <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">Project Board</p>
@@ -724,7 +705,7 @@ export const Sidebar: React.FC = () => {
 
                 {[
                   { id: "gch-announcements", label: "announcements" },
-                  { id: "gch-random",        label: "random" },
+                  { id: "gch-random", label: "random" },
                 ].map((ch) => {
                   const isActive = pathname === "/chat" && activeChannelId === ch.id && activeChannelType === "global";
                   return (
@@ -767,8 +748,8 @@ export const Sidebar: React.FC = () => {
                         </Avatar>
                         <span className={cn(
                           "absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-background",
-                          member.status === "online"  && "bg-green-500",
-                          member.status === "idle"    && "bg-amber-500",
+                          member.status === "online" && "bg-green-500",
+                          member.status === "idle" && "bg-amber-500",
                           member.status === "offline" && "bg-muted-foreground/60"
                         )} />
                       </div>
