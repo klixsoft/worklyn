@@ -18,7 +18,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { Plus, MoreHorizontal, Pencil, Trash2, Users, Search } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, Users, Search, Eye, EyeOff } from "lucide-react";
 import { clientApi } from "@/lib/api/client";
 import { handleApiError } from "@/lib/api/error-handler";
 import { useDeleteConfirmation } from "@/components/auth/delete-confirmation-context";
@@ -72,6 +72,8 @@ export default function UsersPage() {
   const [changingPasswordUser, setChangingPasswordUser] = useState<User | null>(null);
   const [adminPassword, setAdminPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const { data: users = [], isLoading: loadingUsers } = useQuery<User[]>({
     queryKey: ["users"],
@@ -241,7 +243,7 @@ export default function UsersPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {[
           { label: "Total Users", value: users.length, color: "text-indigo-400" },
-          { label: "Superusers", value: users.filter((u) => u.is_superuser).length, color: "text-green-400" },
+          { label: "Superusers", value: users.filter((u) => u.is_superuser).length, color: "text-green-600" },
           { label: "Staff Members", value: users.filter((u) => u.is_staff).length, color: "text-violet-400" },
           { label: "Active", value: users.filter((u) => u.is_active).length, color: "text-amber-400" },
         ].map((stat) => (
@@ -307,7 +309,7 @@ export default function UsersPage() {
                           <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground leading-none">
                             <span>{user.first_name} {user.last_name}</span>
                             {user.is_superuser && (
-                              <span className="text-[9px] font-bold text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded">
+                              <span className="text-[9px] font-bold text-green-600 bg-green-600/10 px-1.5 py-0.5 rounded">
                                 Superuser
                               </span>
                             )}
@@ -335,7 +337,7 @@ export default function UsersPage() {
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className={cn("text-[10px] capitalize font-semibold border", user.is_active ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20")}
+                        className={cn("text-[10px] capitalize font-semibold border", user.is_active ? "bg-green-600/10 text-green-600 border-green-600/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20")}
                       >
                         {user.is_active ? "Active" : "Suspended"}
                       </Badge>
@@ -433,18 +435,35 @@ export default function UsersPage() {
                     </FormItem>
                   )}
                 />
-                <FormField
+                 <FormField
                   control={createForm.control as never}
                   name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const [showPassword, setShowPassword] = useState(false);
+                    return (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              type={showPassword ? "text" : "password"}
+                              placeholder="••••••••"
+                              className="pr-10"
+                              {...field}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer focus:outline-none"
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
                 <FormField
                   control={createForm.control as never}
@@ -707,7 +726,13 @@ export default function UsersPage() {
       </Dialog>
 
       {/* Change Password Dialog */}
-      <Dialog open={!!changingPasswordUser} onOpenChange={(o) => !o && setChangingPasswordUser(null)}>
+      <Dialog open={!!changingPasswordUser} onOpenChange={(o) => {
+        if (!o) {
+          setChangingPasswordUser(null);
+          setShowAdminPassword(false);
+          setShowNewPassword(false);
+        }
+      }}>
         <DialogContent className="bg-card border-border text-card-foreground sm:max-w-[400px] p-0 gap-0 overflow-hidden">
           <DialogHeader className="p-4 border-b border-border text-left">
             <DialogTitle className="text-lg font-bold">Change Password</DialogTitle>
@@ -719,25 +744,45 @@ export default function UsersPage() {
             <div className="p-4 space-y-4">
               <div className="space-y-1.5 text-left">
                 <Label htmlFor="adminPassword">Your Admin Password</Label>
-                <Input
-                  id="adminPassword"
-                  type="password"
-                  placeholder="Confirm your credentials"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="adminPassword"
+                    type={showAdminPassword ? "text" : "password"}
+                    placeholder="Confirm your credentials"
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    className="pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminPassword(!showAdminPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer focus:outline-none"
+                  >
+                    {showAdminPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
               <div className="space-y-1.5 text-left">
                 <Label htmlFor="newPassword">New User Password</Label>
-                <Input
-                  id="newPassword"
-                  type="password"
-                  placeholder="Minimum 6 characters"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showNewPassword ? "text" : "password"}
+                    placeholder="Minimum 6 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer focus:outline-none"
+                  >
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
             </div>
             <DialogFooter className="p-4 border-t border-border bg-card flex items-center justify-end gap-2">

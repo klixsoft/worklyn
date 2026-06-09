@@ -60,13 +60,17 @@ async def create_role(
         
     db.add(new_role)
     await db.commit()
-    await db.refresh(new_role)
     
-    await log_activity(db, current_user.id, "CREATE_ROLE", f"Created role {new_role.name}")
+    # Reload role with permissions to avoid lazy loading outside greenlet
+    stmt = select(Role).where(Role.id == new_role.id).options(selectinload(Role.permissions))
+    res = await db.execute(stmt)
+    role_with_perms = res.scalar_one()
+    
+    await log_activity(db, current_user.id, "CREATE_ROLE", f"Created role {role_with_perms.name}")
     return RoleResponse(
-        id=str(new_role.id),
-        name=new_role.name,
-        permissions=[PermissionResponse(id=str(p.id), name=p.name) for p in new_role.permissions]
+        id=str(role_with_perms.id),
+        name=role_with_perms.name,
+        permissions=[PermissionResponse(id=str(p.id), name=p.name) for p in role_with_perms.permissions]
     )
 
 @router.put("/{role_id}", response_model=RoleResponse)
@@ -95,13 +99,17 @@ async def update_role(
         role.permissions = list(perm_res.scalars().all())
         
     await db.commit()
-    await db.refresh(role)
     
-    await log_activity(db, current_user.id, "UPDATE_ROLE", f"Updated role {role.name}")
+    # Reload role with permissions to avoid lazy loading outside greenlet
+    stmt = select(Role).where(Role.id == role.id).options(selectinload(Role.permissions))
+    res = await db.execute(stmt)
+    role_with_perms = res.scalar_one()
+    
+    await log_activity(db, current_user.id, "UPDATE_ROLE", f"Updated role {role_with_perms.name}")
     return RoleResponse(
-        id=str(role.id),
-        name=role.name,
-        permissions=[PermissionResponse(id=str(p.id), name=p.name) for p in role.permissions]
+        id=str(role_with_perms.id),
+        name=role_with_perms.name,
+        permissions=[PermissionResponse(id=str(p.id), name=p.name) for p in role_with_perms.permissions]
     )
 
 @router.post("/{role_id}/confirm-delete")
