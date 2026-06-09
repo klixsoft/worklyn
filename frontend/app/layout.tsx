@@ -5,6 +5,8 @@ import { WorkspaceProvider } from "@/app/context";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/sidebar";
 
+import { Toaster } from "sonner";
+
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
@@ -55,6 +57,7 @@ export default function RootLayout({
                 {children}
               </main>
             </div>
+            <Toaster richColors closeButton />
           </TooltipProvider>
         </WorkspaceProvider>
       </body>
