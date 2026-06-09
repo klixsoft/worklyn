@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { Plus, MoreHorizontal, Pencil, Trash2, Users, Search } from "lucide-react";
 import { clientApi } from "@/lib/api/client";
@@ -381,7 +382,7 @@ export default function UsersPage() {
       </Card>
 
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="bg-card border-border text-card-foreground sm:max-w-[400px] p-0 gap-0 overflow-hidden">
+        <DialogContent className="bg-card border-border text-card-foreground sm:max-w-[500px] p-0 gap-0 overflow-hidden">
           <DialogHeader className="p-4 border-b border-border text-left">
             <DialogTitle className="text-lg font-bold">Add Team Member</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
@@ -390,33 +391,35 @@ export default function UsersPage() {
           </DialogHeader>
           <Form {...createForm}>
             <form onSubmit={createForm.handleSubmit(handleCreateSubmit as never)}>
-              <div className="p-4 space-y-4">
-                <FormField
-                  control={createForm.control as never}
-                  name="first_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="John" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={createForm.control as never}
-                  name="last_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={createForm.control as never}
+                    name="first_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="John" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={createForm.control as never}
+                    name="last_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Doe" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <FormField
                   control={createForm.control as never}
                   name="email"
@@ -467,11 +470,10 @@ export default function UsersPage() {
                           const checked = field.value.includes(r.id);
                           return (
                             <label key={r.id} className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
+                              <Checkbox
                                 checked={checked}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
+                                onCheckedChange={(isChecked) => {
+                                  if (isChecked) {
                                     field.onChange([...field.value, r.id]);
                                   } else {
                                     field.onChange(field.value.filter((id: string) => id !== r.id));
@@ -549,7 +551,7 @@ export default function UsersPage() {
       </Dialog>
 
       <Dialog open={!!editingUser} onOpenChange={(o) => !o && setEditingUser(null)}>
-        <DialogContent className="bg-card border-border text-card-foreground sm:max-w-[400px] p-0 gap-0 overflow-hidden">
+        <DialogContent className="bg-card border-border text-card-foreground sm:max-w-[500px] p-0 gap-0 overflow-hidden">
           <DialogHeader className="p-4 border-b border-border text-left">
             <DialogTitle className="text-lg font-bold">Edit Member</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
@@ -558,33 +560,35 @@ export default function UsersPage() {
           </DialogHeader>
           <Form {...editForm}>
             <form onSubmit={editForm.handleSubmit(handleUpdateSubmit as never)}>
-              <div className="p-4 space-y-4">
-                <FormField
-                  control={editForm.control as never}
-                  name="first_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="John" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={editForm.control as never}
-                  name="last_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control as never}
+                    name="first_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="John" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control as never}
+                    name="last_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Doe" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <FormField
                   control={editForm.control as never}
                   name="email"
@@ -622,11 +626,10 @@ export default function UsersPage() {
                           const checked = field.value.includes(r.id);
                           return (
                             <label key={r.id} className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
+                              <Checkbox
                                 checked={checked}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
+                                onCheckedChange={(isChecked) => {
+                                  if (isChecked) {
                                     field.onChange([...field.value, r.id]);
                                   } else {
                                     field.onChange(field.value.filter((id: string) => id !== r.id));
