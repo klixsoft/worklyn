@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Eye, EyeOff } from "lucide-react";
 
 interface DeleteConfirmationContextType {
   confirmDelete: (onConfirm: (password: string) => Promise<void>) => void;
@@ -29,12 +30,14 @@ export function useDeleteConfirmation() {
 export function DeleteConfirmationProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
   const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
   const [pendingConfirm, setPendingConfirm] = React.useState<((password: string) => Promise<void>) | null>(null);
   const [loading, setLoading] = React.useState(false);
 
   const confirmDelete = React.useCallback((onConfirm: (password: string) => Promise<void>) => {
     setPendingConfirm(() => onConfirm);
     setPassword("");
+    setShowPassword(false);
     setOpen(true);
   }, []);
 
@@ -55,7 +58,12 @@ export function DeleteConfirmationProvider({ children }: { children: React.React
   return (
     <DeleteConfirmationContext.Provider value={{ confirmDelete }}>
       {children}
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) {
+          setShowPassword(false);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
@@ -64,13 +72,23 @@ export function DeleteConfirmationProvider({ children }: { children: React.React
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Input
-              type="password"
-              placeholder="Enter your account password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your account password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer focus:outline-none"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
