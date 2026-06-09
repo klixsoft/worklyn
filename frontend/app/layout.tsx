@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   description: "Unified Kanban Board & Discord Communication Portal",
 };
 
+import { DeleteConfirmationProvider } from "@/components/auth/delete-confirmation-context";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -51,13 +53,15 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-foreground antialiased font-sans">
         <WorkspaceProvider>
           <TooltipProvider delayDuration={150}>
-            <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
-              <Sidebar />
-              <main className="flex-1 flex flex-col h-full overflow-hidden">
-                {children}
-              </main>
-            </div>
-            <Toaster richColors closeButton />
+            <DeleteConfirmationProvider>
+              <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
+                <Sidebar />
+                <main className="flex-1 flex flex-col h-full overflow-hidden">
+                  {children}
+                </main>
+              </div>
+              <Toaster richColors closeButton />
+            </DeleteConfirmationProvider>
           </TooltipProvider>
         </WorkspaceProvider>
       </body>

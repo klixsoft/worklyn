@@ -4,9 +4,7 @@ from app.models.auth import User, Role, Permission
 
 async def recreate_and_seed():
     async with engine.begin() as conn:
-        # Drop all tables first
         await conn.run_sync(Base.metadata.drop_all)
-        # Create all tables (will include the new is_superuser column)
         await conn.run_sync(Base.metadata.create_all)
         print("Database tables recreated successfully.")
 
@@ -17,6 +15,24 @@ async def recreate_and_seed():
         admin_email = "admin@worklyn.dev"
         admin_pass = "admin123"
         
+        perms = [
+            Permission(name="users:read"),
+            Permission(name="users:create"),
+            Permission(name="users:update"),
+            Permission(name="users:delete"),
+            Permission(name="roles:read"),
+            Permission(name="roles:create"),
+            Permission(name="roles:update"),
+            Permission(name="roles:delete"),
+        ]
+        db.add_all(perms)
+        await db.commit()
+        
+        admin_role = Role(name="admin", permissions=perms)
+        member_role = Role(name="member", permissions=[])
+        db.add_all([admin_role, member_role])
+        await db.commit()
+        
         new_user = User(
             email=admin_email,
             hashed_password=hash_password(admin_pass),
@@ -24,7 +40,8 @@ async def recreate_and_seed():
             is_superuser=True,
             first_name="Admin",
             last_name="Superuser",
-            phone_number="1234567890"
+            phone_number="1234567890",
+            roles=[admin_role]
         )
         db.add(new_user)
         await db.commit()

@@ -3,6 +3,7 @@ from sqlalchemy import Boolean, Column, ForeignKey, String, Table
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
+from app.models.history import AuditLog
 
 role_permissions = Table(
     "role_permissions",
