@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { clientApi } from "@/lib/api/client";
 import { useWorkspace, Task } from "@/app/context";
 import {
   Kanban,
@@ -41,7 +44,70 @@ import {
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
+interface RoleType {
+  id: string;
+  name: string;
+}
+
+interface UserMinType {
+  id: string;
+  username: string;
+  first_name?: string;
+  last_name?: string;
+  email: string;
+  roles?: RoleType[];
+}
+
+interface ProjectType {
+  id: string;
+  name: string;
+  description: string | null;
+  owner_id: string;
+  owner?: UserMinType;
+  created_at: string;
+  updated_at: string;
+}
+
+interface TaskType {
+  id: string;
+  project_id: string;
+  title: string;
+  description: string | null;
+  status: "todo" | "in_progress" | "completed";
+  priority: "low" | "medium" | "high";
+  due_date: string | null;
+  assignee_id: string | null;
+  assignee?: UserMinType;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AuthUserType {
+  id: string;
+  username?: string;
+  email: string;
+  role: string;
+  permissions: string[];
+  isSuperuser: boolean;
+  isStaff: boolean;
+  firstName?: string;
+  lastName?: string;
+  avatar?: string;
+  phoneNumber?: string;
+  documentUrl?: string;
+  accessToken: string;
+  refreshToken: string;
+}
+
+interface AssignedTaskType {
+  id: string;
+  title: string;
+  dueDate?: string;
+  priority: "low" | "medium" | "high";
+}
+
 export const Dashboard: React.FC = () => {
+  const router = useRouter();
   const {
     projects,
     teamMembers,
@@ -54,6 +120,33 @@ export const Dashboard: React.FC = () => {
     addTeamMember,
     roles,
   } = useWorkspace();
+
+  // Query database-backed projects and tasks
+  const { data: dbProjects = [] } = useQuery<ProjectType[]>({
+    queryKey: ["projects"],
+    queryFn: () => clientApi.get("projects").json(),
+  });
+
+  const { data: dbTasks = [] } = useQuery<TaskType[]>({
+    queryKey: ["tasks"],
+    queryFn: () => clientApi.get("tasks").json(),
+  });
+
+  const { data: dbUsers = [] } = useQuery<UserMinType[]>({
+    queryKey: ["users"],
+    queryFn: () => clientApi.get("users").json(),
+  });
+
+  const { data: authData } = useQuery<{ authenticated: boolean; user: AuthUserType }>({
+    queryKey: ["auth-me"],
+    queryFn: () => clientApi.get("auth/me").json(),
+  });
+
+  const loggedInUser = authData?.user;
+  const currentUserId = loggedInUser?.id || currentUser.id;
+  const currentUserName = loggedInUser
+    ? [loggedInUser.firstName, loggedInUser.lastName].filter(Boolean).join(" ") || loggedInUser.username
+    : currentUser.name;
 
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [newMemberName, setNewMemberName] = useState("");
@@ -70,31 +163,81 @@ export const Dashboard: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
-  const totalProjects = projects.length;
-
-  let totalTasks = 0;
-  let completedTasks = 0;
-  const myAssignedTasks: { task: Task; projectName: string; projectId: string; columnId: string; columnName: string }[] = [];
-
+  // Map mock projects' tasks to the same structure
+  const mockTasks: TaskType[] = [];
   projects.forEach((proj) => {
     proj.columns.forEach((col) => {
-      totalTasks += col.tasks.length;
-      if (col.name.toLowerCase() === "done" || col.id.toLowerCase().includes("done")) {
-        completedTasks += col.tasks.length;
-      }
       col.tasks.forEach((t) => {
-        if (t.assigneeId === currentUser.id) {
-          myAssignedTasks.push({
-            task: t,
-            projectName: proj.name,
-            projectId: proj.id,
-            columnId: col.id,
-            columnName: col.name
-          });
-        }
+        mockTasks.push({
+          id: t.id,
+          project_id: proj.id,
+          title: t.title,
+          description: t.description || null,
+          status: (col.id.toLowerCase().includes("done") || col.name.toLowerCase() === "done")
+            ? "completed"
+            : col.id.toLowerCase().includes("progress")
+              ? "in_progress"
+              : "todo",
+          priority: t.priority,
+          due_date: t.dueDate || null,
+          assignee_id: t.assigneeId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
       });
     });
   });
+
+  // Combine database projects/tasks with mock ones
+  const allProjects = [
+    ...dbProjects,
+    ...projects.map(p => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      owner_id: "mock-owner",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }))
+  ];
+
+  const allTasks = [...dbTasks, ...mockTasks];
+
+  const totalProjects = allProjects.length;
+  const totalTasks = allTasks.length;
+  const completedTasks = allTasks.filter(t => t.status === "completed").length;
+
+  const myAssignedTasks: { task: AssignedTaskType; projectName: string; projectId: string; columnId: string; columnName: string }[] = [];
+  allTasks.forEach((t) => {
+    if (t.assignee_id === currentUserId) {
+      const proj = allProjects.find(p => p.id === t.project_id);
+      myAssignedTasks.push({
+        task: {
+          id: t.id,
+          title: t.title,
+          dueDate: t.due_date ? new Date(t.due_date).toLocaleDateString() : "",
+          priority: t.priority,
+        },
+        projectName: proj ? proj.name : "Unknown Project",
+        projectId: t.project_id,
+        columnId: t.status,
+        columnName: t.status === "todo" ? "To Do" : t.status === "in_progress" ? "In Progress" : "Completed",
+      });
+    }
+  });
+
+  const displayMembers = dbUsers.length > 0
+    ? dbUsers
+      .filter(u => u.id !== currentUserId)
+      .map(u => ({
+        id: u.id,
+        name: u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.username,
+        avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80`,
+        status: "online" as const,
+        activity: u.email,
+        role: u.roles && u.roles.length > 0 ? u.roles.map((r: RoleType) => r.name).join(", ") : "Member"
+      }))
+    : teamMembers;
 
   const getTodayWorkingHours = () => {
     const todayStr = new Date().toISOString().split("T")[0];
@@ -158,8 +301,13 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleTaskClick = (projId: string) => {
-    setActiveProjectId(projId);
-    setActiveTab("board");
+    const isDbProject = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projId);
+    if (isDbProject) {
+      router.push(`/projects/${projId}`);
+    } else {
+      setActiveProjectId(projId);
+      setActiveTab("board");
+    }
   };
 
   return (
@@ -168,7 +316,7 @@ export const Dashboard: React.FC = () => {
       <div className="mb-8 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="text-left">
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Welcome back, <span className="text-indigo-400">{currentUser.name}</span>!
+            Welcome back, <span className="text-indigo-400">{currentUserName}</span>!
           </h1>
           <p className="text-sm text-muted-foreground">
             {formatDate(new Date().toISOString())} • Keep track of your sprints and team communication.
@@ -238,9 +386,9 @@ export const Dashboard: React.FC = () => {
             <UserIcon className="h-4.5 w-4.5 text-indigo-400" />
           </CardHeader>
           <CardContent className="text-left">
-            <div className="text-2xl font-bold">{teamMembers.length + 1}</div>
+            <div className="text-2xl font-bold">{displayMembers.length + 1}</div>
             <p className="text-[11px] text-muted-foreground mt-1 font-medium">
-              {teamMembers.filter(m => m.status === "online").length} members currently online
+              {displayMembers.filter(m => m.status === "online").length} members currently online
             </p>
           </CardContent>
         </Card>
@@ -250,28 +398,45 @@ export const Dashboard: React.FC = () => {
       {/* ─── Analytics Charts ─── */}
       {(() => {
         // Build chart data
-        const statusMap: Record<string, number> = {};
+        const statusOrder = ["To Do", "In Progress", "Done"];
+        const statusColors = ["#6b7280", "#6366f1", "#10b981"];
+
+        const statusMap: Record<string, number> = {
+          "To Do": 0,
+          "In Progress": 0,
+          "Done": 0
+        };
         const projectLabels: string[] = [];
-        const projectStatusData: Record<string, number[]> = {};
+        const projectStatusData: Record<string, number[]> = {
+          "To Do": [],
+          "In Progress": [],
+          "Done": []
+        };
         const memberTaskMap: Record<string, number> = {};
 
-        const statusOrder = ["To Do", "In Progress", "In Review", "Done"];
-        const statusColors = ["#6b7280", "#6366f1", "#f59e0b", "#10b981"];
-
-        projects.forEach((proj) => {
+        allProjects.forEach((proj) => {
           projectLabels.push(proj.name.length > 12 ? proj.name.slice(0, 12) + "…" : proj.name);
-          proj.columns.forEach((col) => {
-            const label = col.name;
-            statusMap[label] = (statusMap[label] || 0) + col.tasks.length;
-            if (!projectStatusData[label]) projectStatusData[label] = [];
-            projectStatusData[label].push(col.tasks.length);
+          const projTasks = allTasks.filter((t) => t.project_id === proj.id);
 
-            col.tasks.forEach((t) => {
-              if (t.assigneeId) {
-                memberTaskMap[t.assigneeId] = (memberTaskMap[t.assigneeId] || 0) + 1;
-              }
-            });
+          let todoCount = 0;
+          let progressCount = 0;
+          let doneCount = 0;
+
+          projTasks.forEach((t) => {
+            const statusLabel = t.status === "todo" ? "To Do" : t.status === "in_progress" ? "In Progress" : "Done";
+            statusMap[statusLabel] = (statusMap[statusLabel] || 0) + 1;
+            if (statusLabel === "To Do") todoCount++;
+            else if (statusLabel === "In Progress") progressCount++;
+            else if (statusLabel === "Done") doneCount++;
+
+            if (t.assignee_id) {
+              memberTaskMap[t.assignee_id] = (memberTaskMap[t.assignee_id] || 0) + 1;
+            }
           });
+
+          projectStatusData["To Do"].push(todoCount);
+          projectStatusData["In Progress"].push(progressCount);
+          projectStatusData["Done"].push(doneCount);
         });
 
         const donutLabels = Object.keys(statusMap);
@@ -291,9 +456,14 @@ export const Dashboard: React.FC = () => {
             color: statusColors[i],
           }));
 
-        const allMembers = [currentUser, ...teamMembers];
-        const memberNames = allMembers.map((m) => m.name.split(" ")[0]);
-        const memberCounts = allMembers.map((m) => memberTaskMap[m.id] || 0);
+        const allMembersForWorkload = dbUsers.length > 0
+          ? dbUsers.map(u => ({
+            id: u.id,
+            name: u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.username
+          }))
+          : [currentUser, ...teamMembers];
+        const memberNames = allMembersForWorkload.map((m) => m.name.split(" ")[0]);
+        const memberCounts = allMembersForWorkload.map((m) => memberTaskMap[m.id] || 0);
 
         const chartTheme = isDark ? "dark" : "light";
         const gridColor = isDark ? "#27272a" : "#e4e4e7";
@@ -365,7 +535,7 @@ export const Dashboard: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4">
-                {projects.length === 0 ? (
+                {allProjects.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center">
                     <Briefcase className="h-8 w-8 text-muted-foreground/30 mb-2" />
                     <p className="text-xs text-muted-foreground">No projects yet</p>
@@ -496,7 +666,7 @@ export const Dashboard: React.FC = () => {
               </Button>
             </CardHeader>
             <CardContent className="p-3 space-y-3">
-              {teamMembers.map((member) => (
+              {displayMembers.map((member) => (
                 <div key={member.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5 truncate pr-2">
                     <div className="relative">
@@ -589,7 +759,7 @@ export const Dashboard: React.FC = () => {
 
               <div className="space-y-1">
                 <Label className="text-xs font-normal text-muted-foreground">Initial Status</Label>
-                <Select value={newMemberStatus} onValueChange={(val) => setNewMemberStatus(val as any)}>
+                <Select value={newMemberStatus} onValueChange={(val) => setNewMemberStatus(val as "online" | "idle" | "offline")}>
                   <SelectTrigger className="w-full h-9 bg-background border-border text-foreground text-xs">
                     <SelectValue />
                   </SelectTrigger>

@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useWorkspace } from "@/app/context";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { clientApi } from "@/lib/api/client";
 import {
   Hash,
   Plus,
@@ -126,6 +128,21 @@ export const Sidebar: React.FC = () => {
     activeSoftware,
     setActiveSoftware,
   } = useWorkspace();
+
+  const { data: dbProjects = [] } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => clientApi.get("projects").json() as Promise<any[]>,
+  });
+
+  const currentProjectId = useMemo(() => {
+    const match = pathname.match(/\/projects\/([a-f0-9-]+)/);
+    return match ? match[1] : null;
+  }, [pathname]);
+
+  const currentProject = useMemo(() => {
+    if (!currentProjectId) return null;
+    return dbProjects.find(p => p.id === currentProjectId) || null;
+  }, [currentProjectId, dbProjects]);
 
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
   const [projName, setProjName] = useState("");
@@ -275,44 +292,20 @@ export const Sidebar: React.FC = () => {
           <>
             <div className="h-[2px] w-8 rounded bg-border my-2" />
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div
-                  onClick={() => selectProject(null)}
-                  className={cn(
-                    "flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl transition-all duration-200 bg-muted hover:bg-indigo-600 hover:text-white",
-                    isGlobalActive && "bg-indigo-600 ring-2 ring-indigo-500 ring-offset-2 ring-offset-background"
-                  )}
-                >
-                  <img
-                    src="https://klixsoft.com/images/logo.svg"
-                    alt="Klixsoft Logo"
-                    className="h-6 w-6"
-                  />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="bg-popover border border-border text-popover-foreground font-semibold font-sans">
-                Global Portal Dashboard
-              </TooltipContent>
-            </Tooltip>
-
-            <div className="h-[2px] w-8 rounded bg-border my-2" />
-
             <div className="flex flex-1 w-full flex-col items-center gap-4 overflow-y-auto scrollbar-none px-2">
-              {projects.map((proj) => {
-                const isActive = !isGlobalActive && activeProjectId === proj.id;
-                const isCustomColor = !proj.color.startsWith("bg-");
+              {dbProjects.map((proj) => {
+                const isActive = pathname.startsWith(`/projects/${proj.id}`);
                 const isHovered = hoveredProjectId === proj.id;
                 const isHighlighted = isActive || isHovered;
                 return (
                   <Tooltip key={proj.id}>
                     <TooltipTrigger asChild>
                       <div
-                        onClick={() => selectProject(proj.id)}
+                        onClick={() => router.push(`/projects/${proj.id}`)}
                         onMouseEnter={() => setHoveredProjectId(proj.id)}
                         onMouseLeave={() => setHoveredProjectId(null)}
                         className={cn(
-                          "flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl text-base font-bold transition-all duration-200",
+                          "flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl text-xs font-bold transition-all duration-200",
                           isActive
                             ? "text-white ring-2 ring-offset-2 ring-offset-background ring-indigo-500"
                             : "bg-muted text-muted-foreground hover:text-foreground"
@@ -321,13 +314,10 @@ export const Sidebar: React.FC = () => {
                         <div
                           className={cn(
                             "flex h-full w-full items-center justify-center rounded-xl transition-all duration-200",
-                            isHighlighted
-                              ? (isCustomColor ? "" : proj.color)
-                              : "bg-muted"
+                            isHighlighted ? "bg-indigo-600 text-white" : "bg-muted"
                           )}
-                          style={isHighlighted && isCustomColor ? { backgroundColor: proj.color } : undefined}
                         >
-                          {proj.icon}
+                          {proj.name.slice(0, 2).toUpperCase()}
                         </div>
                       </div>
                     </TooltipTrigger>
@@ -512,7 +502,7 @@ export const Sidebar: React.FC = () => {
       <div className="flex w-60 flex-col bg-sidebar border-r border-border">
 
         <div className="flex h-12 items-center justify-between border-b border-border px-4 font-semibold text-foreground ">
-          <span className="truncate">{activeProject && !isGlobalActive ? activeProject.name : "Klixsoft Workspace"}</span>
+          <span className="truncate">{currentProject ? currentProject.name : (activeProject && !isGlobalActive ? activeProject.name : "Klixsoft Workspace")}</span>
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-800">
@@ -577,7 +567,25 @@ export const Sidebar: React.FC = () => {
             </div>
           )}
 
-          {activeProject && !isGlobalActive && (
+          {currentProject && (
+            <div className="space-y-0.5 pt-3 border-t border-border/60">
+              <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">Project Board</p>
+
+              <Link
+                href={`/projects/${currentProject.id}`}
+                className={cn(
+                  "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all hover:bg-muted/60 hover:text-foreground",
+                  pathname === `/projects/${currentProject.id}`
+                    ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
+                    : "text-muted-foreground"
+                )}
+              >
+                <Kanban className="h-4 w-4 shrink-0" />
+                Kanban &amp; Backlog
+              </Link>
+            </div>
+          )}
+          {activeProject && !isGlobalActive && !currentProject && (
             <div className="space-y-0.5 pt-3 border-t border-border/60">
               <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">Project Board</p>
 
