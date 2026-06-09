@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { 
   ArrowLeft,
   Plus, 
@@ -18,7 +18,9 @@ import {
   ChevronRight,
   MoreVertical,
   Check,
-  CalendarCheck2
+  CalendarCheck2,
+  LayoutDashboard,
+  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -45,6 +47,11 @@ import { toast } from "sonner";
 import { clientApi } from "@/lib/api/client";
 import { useDeleteConfirmation } from "@/components/auth/delete-confirmation-context";
 import { format } from "date-fns";
+import dynamic from "next/dynamic";
+import { useWorkspace } from "@/app/context";
+import { JiraBoard } from "@/components/jira-board";
+
+const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 interface UserMinType {
   id: string;
@@ -79,19 +86,66 @@ interface TaskType {
 }
 
 export default function ProjectWorkspacePage() {
+  return (
+    <Suspense 
+      fallback={
+        <div className="flex items-center justify-center py-40">
+          <div className="h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <ProjectWorkspaceInner />
+    </Suspense>
+  );
+}
+
+function ProjectWorkspaceInner() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
   const projectId = params.id as string;
   const { confirmDelete } = useDeleteConfirmation();
 
-  // View settings
-  const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
-  
-  // Task Dialog settings
-  const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
-  const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
-  const [activeTask, setActiveTask] = useState<TaskType | null>(null);
+  // Mock Workspace Context
+  const { 
+    projects: mockProjects, 
+    activeProject, 
+    setActiveProjectId,
+    addTask,
+    updateTask,
+    deleteTask,
+    moveTask,
+    teamMembers,
+    currentUser
+  } = useWorkspace();
+
+  const isMock = projectId?.startsWith("proj-");
+
+  // Sync workspace active ID
+  useEffect(() => {
+    if (projectId) {
+      setActiveProjectId(projectId);
+    }
+  }, [projectId, setActiveProjectId]);
+
+  // URL search params view selection
+  const searchParams = useSearchParams();
+  const viewMode = (searchParams?.get("view") as "dashboard" | "kanban" | "list") || "dashboard";
+
+  const setViewMode = (mode: "dashboard" | "kanban" | "list") => {
+    router.push(`/projects/${projectId}?view=${mode}`);
+  };
+
+  // Dark theme detection for ApexCharts repainting
+  const [isDark, setIsDark] = useState(true);
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains("dark"));
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   // Form states
   const [title, setTitle] = useState("");
@@ -100,26 +154,94 @@ export default function ProjectWorkspacePage() {
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [assigneeId, setAssigneeId] = useState<string>("none");
+  const [activeTask, setActiveTask] = useState<TaskType | null>(null);
 
-  // Fetch current project
-  const { data: project, isLoading: isLoadingProject } = useQuery<ProjectType>({
+  // Task Dialog settings
+  const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
+  const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
+
+  // Fetch current project from DB (only if not mock)
+  const { data: dbProject, isLoading: isLoadingDbProject } = useQuery<ProjectType>({
     queryKey: ["projects", projectId],
     queryFn: () => clientApi.get(`projects/${projectId}`).json(),
+    enabled: !isMock && !!projectId
   });
 
-  // Fetch tasks for this project
-  const { data: tasks = [], isLoading: isLoadingTasks } = useQuery<TaskType[]>({
+  // Fetch tasks for this project from DB (only if not mock)
+  const { data: dbTasks = [], isLoading: isLoadingDbTasks } = useQuery<TaskType[]>({
     queryKey: ["tasks", { projectId }],
     queryFn: () => clientApi.get("tasks", { searchParams: { project_id: projectId } }).json(),
+    enabled: !isMock && !!projectId
   });
 
   // Fetch all users in system for assignment dropdown
-  const { data: users = [] } = useQuery<UserMinType[]>({
+  const { data: dbUsers = [] } = useQuery<UserMinType[]>({
     queryKey: ["users"],
     queryFn: () => clientApi.get("users").json(),
+    enabled: !isMock
   });
 
-  // Mutations
+  // Resolve projects & tasks based on Context (mock) vs DB
+  const mockProject = useMemo(() => {
+    return mockProjects.find(p => p.id === projectId) || activeProject;
+  }, [mockProjects, activeProject, projectId]);
+
+  const project = useMemo<ProjectType | null>(() => {
+    if (isMock) {
+      if (!mockProject) return null;
+      return {
+        id: mockProject.id,
+        name: mockProject.name,
+        description: mockProject.description || null,
+        owner_id: "mock-owner",
+        owner: { id: "mock-owner", username: "Alex", email: "alex@klixsoft.com" },
+        created_at: "",
+        updated_at: ""
+      };
+    }
+    return dbProject || null;
+  }, [isMock, dbProject, mockProject]);
+
+  const tasks = useMemo<TaskType[]>(() => {
+    if (isMock) {
+      if (!mockProject) return [];
+      return mockProject.columns.flatMap(col => 
+        col.tasks.map(t => ({
+          id: t.id,
+          project_id: projectId,
+          title: t.title,
+          description: t.description || null,
+          status: (col.id.toLowerCase().includes("done") || col.name.toLowerCase() === "done" || col.id === "col-completed" || col.id === "completed" || col.id === "completed-tasks")
+            ? "completed" as const
+            : (col.id.toLowerCase().includes("progress") || col.id === "in_progress")
+              ? "in_progress" as const
+              : "todo" as const,
+          priority: t.priority as "low" | "medium" | "high",
+          due_date: t.dueDate || null,
+          assignee_id: t.assigneeId || null,
+          assignee: t.assigneeId ? { id: t.assigneeId, username: t.assigneeId === "user-current" ? "Alex (Me)" : t.assigneeId, email: "" } : undefined,
+          created_at: "",
+          updated_at: ""
+        }))
+      );
+    }
+    return dbTasks;
+  }, [isMock, dbTasks, mockProject, projectId]);
+
+  const users = useMemo<UserMinType[]>(() => {
+    if (isMock) {
+      return [
+        { id: "user-current", username: "Alex (Me)", email: currentUser.email },
+        ...teamMembers.map(m => ({ id: m.id, username: m.name, email: "" }))
+      ];
+    }
+    return dbUsers;
+  }, [isMock, dbUsers, teamMembers, currentUser]);
+
+  const isLoadingProject = !isMock && isLoadingDbProject;
+  const isLoadingTasks = !isMock && isLoadingDbTasks;
+
+  // DB Mutations
   const createTaskMutation = useMutation({
     mutationFn: (newTask: Partial<TaskType>) =>
       clientApi.post("tasks", { json: { ...newTask, project_id: projectId } }).json(),
@@ -129,8 +251,9 @@ export default function ProjectWorkspacePage() {
       setIsNewTaskOpen(false);
       resetForm();
     },
-    onError: (err: any) => {
-      toast.error(err?.message || "Failed to create task");
+    onError: (err: unknown) => {
+      const errMsg = err instanceof Error ? err.message : "Failed to create task";
+      toast.error(errMsg);
     }
   });
 
@@ -142,8 +265,9 @@ export default function ProjectWorkspacePage() {
       setIsEditTaskOpen(false);
       resetForm();
     },
-    onError: (err: any) => {
-      toast.error(err?.message || "Failed to update task");
+    onError: (err: unknown) => {
+      const errMsg = err instanceof Error ? err.message : "Failed to update task";
+      toast.error(errMsg);
     }
   });
 
@@ -153,6 +277,10 @@ export default function ProjectWorkspacePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       toast.success("Task status updated");
+    },
+    onError: (err: unknown) => {
+      const errMsg = err instanceof Error ? err.message : "Failed to update task status";
+      toast.error(errMsg);
     }
   });
 
@@ -163,8 +291,9 @@ export default function ProjectWorkspacePage() {
       toast.success("Task deleted successfully");
       setIsEditTaskOpen(false);
     },
-    onError: (err: any) => {
-      toast.error(err?.message || "Failed to delete task");
+    onError: (err: unknown) => {
+      const errMsg = err instanceof Error ? err.message : "Failed to delete task";
+      toast.error(errMsg);
     }
   });
 
@@ -180,14 +309,29 @@ export default function ProjectWorkspacePage() {
 
   const handleCreateTask = () => {
     if (!title.trim()) return;
-    createTaskMutation.mutate({
-      title: title.trim(),
-      description: description.trim(),
-      status,
-      priority,
-      due_date: dueDate ? dueDate.toISOString() : null,
-      assignee_id: assigneeId === "none" ? null : assigneeId
-    });
+    if (isMock) {
+      const colId = status === "completed" ? "col-done" : status === "in_progress" ? "col-progress" : "col-todo";
+      addTask(projectId, colId, {
+        title: title.trim(),
+        description: description.trim(),
+        priority,
+        assigneeId: assigneeId === "none" ? "" : assigneeId,
+        dueDate: dueDate ? dueDate.toISOString().split("T")[0] : "",
+        tags: ["Task"]
+      });
+      toast.success("Task created successfully");
+      setIsNewTaskOpen(false);
+      resetForm();
+    } else {
+      createTaskMutation.mutate({
+        title: title.trim(),
+        description: description.trim(),
+        status,
+        priority,
+        due_date: dueDate ? dueDate.toISOString() : null,
+        assignee_id: assigneeId === "none" ? null : assigneeId
+      });
+    }
   };
 
   const handleOpenEdit = (task: TaskType) => {
@@ -203,23 +347,65 @@ export default function ProjectWorkspacePage() {
 
   const handleUpdateTask = () => {
     if (!activeTask || !title.trim()) return;
-    updateTaskMutation.mutate({
-      id: activeTask.id,
-      updates: {
-        title: title.trim(),
-        description: description.trim(),
-        status,
-        priority,
-        due_date: dueDate ? dueDate.toISOString() : null,
-        assignee_id: assigneeId === "none" ? null : assigneeId
+    if (isMock) {
+      const srcCol = mockProject?.columns.find(col => col.tasks.some(t => t.id === activeTask.id));
+      if (srcCol) {
+        const targetColId = status === "completed" ? "col-done" : status === "in_progress" ? "col-progress" : "col-todo";
+        updateTask(projectId, srcCol.id, activeTask.id, {
+          title: title.trim(),
+          description: description.trim(),
+          priority,
+          assigneeId: assigneeId === "none" ? "" : assigneeId,
+          dueDate: dueDate ? dueDate.toISOString().split("T")[0] : ""
+        });
+        if (srcCol.id !== targetColId) {
+          moveTask(projectId, srcCol.id, targetColId, activeTask.id);
+        }
+        toast.success("Task updated successfully");
+      }
+      setIsEditTaskOpen(false);
+      resetForm();
+    } else {
+      updateTaskMutation.mutate({
+        id: activeTask.id,
+        updates: {
+          title: title.trim(),
+          description: description.trim(),
+          status,
+          priority,
+          due_date: dueDate ? dueDate.toISOString() : null,
+          assignee_id: assigneeId === "none" ? null : assigneeId
+        }
+      });
+    }
+  };
+
+  const handleDeleteTask = (task: TaskType) => {
+    confirmDelete(() => {
+      if (isMock) {
+        const srcCol = mockProject?.columns.find(col => col.tasks.some(t => t.id === task.id));
+        if (srcCol) {
+          deleteTask(projectId, srcCol.id, task.id);
+          toast.success("Task deleted successfully");
+        }
+        setIsEditTaskOpen(false);
+      } else {
+        deleteTaskMutation.mutate(task.id);
       }
     });
   };
 
-  const handleDeleteTask = (task: TaskType) => {
-    confirmDelete(async () => {
-      await deleteTaskMutation.mutateAsync(task.id);
-    });
+  const handleMoveTaskColumn = (task: TaskType, targetStatus: TaskType["status"]) => {
+    if (isMock) {
+      const srcCol = mockProject?.columns.find(col => col.tasks.some(t => t.id === task.id));
+      const targetColId = targetStatus === "completed" ? "col-done" : targetStatus === "in_progress" ? "col-progress" : "col-todo";
+      if (srcCol && srcCol.id !== targetColId) {
+        moveTask(projectId, srcCol.id, targetColId, task.id);
+        toast.success("Task status updated");
+      }
+    } else {
+      updateTaskStatusMutation.mutate({ id: task.id, status: targetStatus });
+    }
   };
 
   // Helper for Priority styling
@@ -250,21 +436,170 @@ export default function ProjectWorkspacePage() {
   if (!project) {
     return (
       <div className="text-center py-20">
-        <h2 className="text-lg font-bold text-foreground">Project not found</h2>
-        <Button asChild className="mt-4 bg-indigo-600 text-white">
+        <h2 className="text-lg font-bold text-foreground">Project Workspace Not Found</h2>
+        <Button asChild className="mt-4 bg-indigo-600 text-white cursor-pointer">
           <Link href="/projects">Back to Projects</Link>
         </Button>
       </div>
     );
   }
 
-  // Calculate project statistics
+  // Statistics
   const totalCount = tasks.length;
   const completedCount = tasks.filter(t => t.status === "completed").length;
+  const inProgressCount = tasks.filter(t => t.status === "in_progress").length;
+  const todoCount = tasks.filter(t => t.status === "todo").length;
   const percentComplete = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
+  const overdueCount = tasks.filter(t => {
+    if (t.status === "completed" || !t.due_date) return false;
+    return new Date(t.due_date) < new Date();
+  }).length;
+
+  const highCount = tasks.filter(t => t.priority === "high").length;
+  const mediumCount = tasks.filter(t => t.priority === "medium").length;
+  const lowCount = tasks.filter(t => t.priority === "low").length;
+
+  // Extract Workload Metrics per Assignee
+  const assigneeMap: Record<string, { name: string; completed: number; active: number }> = {};
+  tasks.forEach(task => {
+    const name = task.assignee?.username || (task.assignee_id === "user-current" ? "Alex (Me)" : task.assignee_id) || "Unassigned";
+    if (!assigneeMap[name]) {
+      assigneeMap[name] = { name, completed: 0, active: 0 };
+    }
+    if (task.status === "completed") {
+      assigneeMap[name].completed++;
+    } else {
+      assigneeMap[name].active++;
+    }
+  });
+
+  const assigneeData = Object.values(assigneeMap);
+  const assigneeNames = assigneeData.map(d => d.name);
+  const assigneeCompletedSeries = assigneeData.map(d => d.completed);
+  const assigneeActiveSeries = assigneeData.map(d => d.active);
+
+  const workloadSeries = [
+    { name: "Completed Tasks", data: assigneeCompletedSeries },
+    { name: "Active Tasks", data: assigneeActiveSeries }
+  ];
+
+  // Chart Styling Definitions
+  const chartThemeMode = isDark ? ("dark" as const) : ("light" as const);
+  const gridBorderColor = isDark ? "#2d2d30" : "#e4e4e7";
+  const legendLabelColor = isDark ? "#a1a1aa" : "#71717a";
+
+  const donutOptions = {
+    chart: {
+      type: "donut" as const,
+      background: "transparent",
+      foreColor: legendLabelColor,
+    },
+    theme: { mode: chartThemeMode },
+    colors: ["#10b981", "#f59e0b", "#6366f1"],
+    labels: ["Completed", "In Progress", "To Do"],
+    plotOptions: {
+      pie: {
+        donut: {
+          size: "68%",
+          labels: {
+            show: true,
+            total: {
+              show: true,
+              label: "Tasks Count",
+              fontSize: "12px",
+              color: legendLabelColor,
+              formatter: () => String(totalCount)
+            }
+          }
+        }
+      }
+    },
+    dataLabels: { enabled: false },
+    legend: { position: "bottom" as const, labels: { colors: legendLabelColor } },
+    stroke: { show: true, colors: [isDark ? "#121214" : "#ffffff"], width: 2 },
+    tooltip: { theme: chartThemeMode }
+  };
+
+  const priorityOptions = {
+    chart: {
+      type: "bar" as const,
+      background: "transparent",
+      foreColor: legendLabelColor,
+      toolbar: { show: false }
+    },
+    theme: { mode: chartThemeMode },
+    colors: ["#f43f5e", "#f59e0b", "#10b981"],
+    plotOptions: {
+      bar: {
+        distributed: true,
+        borderRadius: 5,
+        columnWidth: "40%",
+      }
+    },
+    dataLabels: { enabled: false },
+    legend: { show: false },
+    xaxis: {
+      categories: ["High", "Medium", "Low"],
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      labels: { style: { colors: legendLabelColor } }
+    },
+    yaxis: {
+      labels: {
+        style: { colors: legendLabelColor },
+        formatter: (val: number) => String(Math.floor(val))
+      }
+    },
+    grid: { borderColor: gridBorderColor, strokeDashArray: 4 },
+    tooltip: { theme: chartThemeMode }
+  };
+
+  const assigneeOptions = {
+    chart: {
+      type: "bar" as const,
+      background: "transparent",
+      foreColor: legendLabelColor,
+      toolbar: { show: false },
+      stacked: true
+    },
+    theme: { mode: chartThemeMode },
+    colors: ["#10b981", "#6366f1"],
+    plotOptions: {
+      bar: {
+        horizontal: true,
+        borderRadius: 4,
+        barHeight: "45%",
+      }
+    },
+    xaxis: {
+      categories: assigneeNames,
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      labels: { 
+        style: { colors: legendLabelColor },
+        formatter: (val: number) => String(Math.floor(val))
+      }
+    },
+    yaxis: {
+      labels: { style: { colors: legendLabelColor } }
+    },
+    grid: { borderColor: gridBorderColor, strokeDashArray: 4 },
+    legend: { 
+      position: "top" as const, 
+      horizontalAlign: "right" as const, 
+      labels: { colors: legendLabelColor } 
+    },
+    tooltip: { theme: chartThemeMode }
+  };
+
+  // If mock project and view is kanban, load standard JiraBoard
+  if (isMock && viewMode === "kanban") {
+    return <JiraBoard />;
+  }
+
   return (
-    <div className="space-y-6 p-6 max-w-7xl mx-auto">
+    <div className="space-y-6 p-6 max-w-7xl mx-auto h-full overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-850">
       {/* Workspace Header Navigation */}
       <div className="flex items-center gap-3">
         <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer">
@@ -279,14 +614,13 @@ export default function ProjectWorkspacePage() {
 
       {/* Project Banner Cards */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 p-6 border border-border/50 bg-card/30 backdrop-blur-xl rounded-2xl">
-        <div className="space-y-1.5 max-w-2xl">
+        <div className="space-y-1.5 max-w-2xl text-left">
           <h1 className="text-2xl font-extrabold text-foreground">{project.name}</h1>
           <p className="text-xs text-muted-foreground leading-relaxed">
             {project.description || "No description provided."}
           </p>
         </div>
         <div className="flex items-center gap-6 w-full lg:w-auto shrink-0 border-t lg:border-t-0 pt-4 lg:pt-0">
-          {/* Progress ring or stat */}
           <div className="flex flex-col items-center justify-center bg-card/60 p-4 border border-border/60 rounded-xl min-w-32">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Completion</span>
             <span className="text-xl font-black text-indigo-400 mt-1">{percentComplete}%</span>
@@ -294,14 +628,23 @@ export default function ProjectWorkspacePage() {
           </div>
 
           <div className="flex flex-col gap-2 w-full lg:w-auto">
-            {/* View Mode & Add buttons */}
             <div className="flex items-center gap-2">
               <div className="bg-muted p-1 rounded-lg flex items-center gap-1">
+                <Button 
+                  variant={viewMode === "dashboard" ? "secondary" : "ghost"} 
+                  size="icon" 
+                  onClick={() => setViewMode("dashboard")}
+                  className="h-7 w-7 rounded cursor-pointer"
+                  title="Dashboard"
+                >
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                </Button>
                 <Button 
                   variant={viewMode === "kanban" ? "secondary" : "ghost"} 
                   size="icon" 
                   onClick={() => setViewMode("kanban")}
                   className="h-7 w-7 rounded cursor-pointer"
+                  title="Kanban Board"
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />
                 </Button>
@@ -310,6 +653,7 @@ export default function ProjectWorkspacePage() {
                   size="icon" 
                   onClick={() => setViewMode("list")}
                   className="h-7 w-7 rounded cursor-pointer"
+                  title="Task Backlog"
                 >
                   <ListTodo className="h-3.5 w-3.5" />
                 </Button>
@@ -333,6 +677,140 @@ export default function ProjectWorkspacePage() {
       {isLoadingTasks ? (
         <div className="flex justify-center py-20">
           <div className="h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : viewMode === "dashboard" ? (
+        /* --- PROJECT DASHBOARD VIEW --- */
+        <div className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-card/40 border-border/60 backdrop-blur-md">
+              <CardContent className="p-5 flex items-center justify-between">
+                <div className="space-y-1 text-left">
+                  <span className="text-xs text-muted-foreground font-semibold">Total Tasks</span>
+                  <h3 className="text-2xl font-bold text-foreground">{totalCount}</h3>
+                </div>
+                <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl">
+                  <ListTodo className="h-5 w-5" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/40 border-border/60 backdrop-blur-md">
+              <CardContent className="p-5 flex items-center justify-between">
+                <div className="space-y-1 text-left">
+                  <span className="text-xs text-muted-foreground font-semibold">Completed</span>
+                  <h3 className="text-2xl font-bold text-emerald-400">{completedCount}</h3>
+                </div>
+                <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/40 border-border/60 backdrop-blur-md">
+              <CardContent className="p-5 flex items-center justify-between">
+                <div className="space-y-1 text-left">
+                  <span className="text-xs text-muted-foreground font-semibold">In Progress</span>
+                  <h3 className="text-2xl font-bold text-amber-400">{inProgressCount}</h3>
+                </div>
+                <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl">
+                  <Clock className="h-5 w-5" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/40 border-border/60 backdrop-blur-md">
+              <CardContent className="p-5 flex items-center justify-between">
+                <div className="space-y-1 text-left">
+                  <span className="text-xs text-muted-foreground font-semibold">Overdue Tasks</span>
+                  <h3 className={`text-2xl font-bold ${overdueCount > 0 ? "text-rose-400 animate-pulse" : "text-zinc-400"}`}>{overdueCount}</h3>
+                </div>
+                <div className={`p-3 rounded-xl ${overdueCount > 0 ? "bg-rose-500/10 text-rose-400" : "bg-zinc-500/10 text-zinc-400"}`}>
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="bg-card/40 border-border/60 backdrop-blur-md">
+              <CardHeader className="text-left pb-2">
+                <CardTitle className="text-sm font-bold text-foreground">Task Status Distribution</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">Status breakdown for current project tasks</CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center justify-center p-4">
+                {totalCount === 0 ? (
+                  <div className="py-12 flex flex-col items-center justify-center text-center">
+                    <ListTodo className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                    <p className="text-xs text-muted-foreground">No tasks registered yet.</p>
+                  </div>
+                ) : (
+                  <div className="w-full">
+                    <Chart
+                      type="donut"
+                      width="100%"
+                      height={240}
+                      series={[completedCount, inProgressCount, todoCount]}
+                      options={donutOptions}
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/40 border-border/60 backdrop-blur-md">
+              <CardHeader className="text-left pb-2">
+                <CardTitle className="text-sm font-bold text-foreground">Tasks by Priority</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">Urgency breakdown of active and completed tasks</CardDescription>
+              </CardHeader>
+              <CardContent className="p-4">
+                {totalCount === 0 ? (
+                  <div className="py-12 flex flex-col items-center justify-center text-center">
+                    <ListTodo className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                    <p className="text-xs text-muted-foreground">No tasks registered yet.</p>
+                  </div>
+                ) : (
+                  <Chart
+                    type="bar"
+                    width="100%"
+                    height={240}
+                    series={[{ name: "Tasks Count", data: [highCount, mediumCount, lowCount] }]}
+                    options={priorityOptions}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Workload Horizontal Stacked Bars */}
+          <Card className="bg-card/40 border-border/60 backdrop-blur-md">
+            <CardHeader className="text-left pb-2">
+              <CardTitle className="text-sm font-bold text-foreground">Resource Task Load</CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">Workload count of tasks assigned per teammate</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4">
+              {totalCount === 0 ? (
+                <div className="py-12 flex flex-col items-center justify-center text-center">
+                  <ListTodo className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                  <p className="text-xs text-muted-foreground">No tasks registered yet.</p>
+                </div>
+              ) : assigneeNames.length === 0 ? (
+                <div className="py-12 flex flex-col items-center justify-center text-center">
+                  <User className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                  <p className="text-xs text-muted-foreground">All tasks are currently unassigned.</p>
+                </div>
+              ) : (
+                <Chart
+                  type="bar"
+                  width="100%"
+                  height={Math.max(160, assigneeNames.length * 60)}
+                  series={workloadSeries}
+                  options={assigneeOptions}
+                />
+              )}
+            </CardContent>
+          </Card>
         </div>
       ) : viewMode === "kanban" ? (
         /* --- KANBAN BOARD VIEW --- */
@@ -376,7 +854,7 @@ export default function ProjectWorkspacePage() {
                       <Card 
                         key={task.id}
                         onClick={() => handleOpenEdit(task)}
-                        className="group p-4 border border-border/50 bg-card/40 hover:bg-card/75 hover:border-indigo-500/40 hover:shadow-md cursor-pointer transition-all duration-200 rounded-xl"
+                        className="group p-4 border border-border/50 bg-card/40 hover:bg-card/75 hover:border-indigo-500/40 hover:shadow-md cursor-pointer transition-all duration-200 rounded-xl text-left"
                       >
                         <div className="space-y-3">
                           <div className="flex items-start justify-between gap-2">
@@ -394,7 +872,7 @@ export default function ProjectWorkspacePage() {
                                 {columns.map(statusOption => (
                                   <DropdownMenuItem 
                                     key={statusOption.id}
-                                    onClick={() => updateTaskStatusMutation.mutate({ id: task.id, status: statusOption.id })}
+                                    onClick={() => handleMoveTaskColumn(task, statusOption.id)}
                                     className="flex items-center justify-between text-xs cursor-pointer"
                                   >
                                     <span>Move to {statusOption.name}</span>
@@ -420,7 +898,6 @@ export default function ProjectWorkspacePage() {
                           )}
 
                           <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/40">
-                            {/* Priority & Due Date */}
                             <div className="flex items-center gap-1.5">
                               <span className={`px-1.5 py-0.5 rounded-[4px] text-[9px] font-bold uppercase tracking-wider ${getPriorityBadge(task.priority)}`}>
                                 {task.priority}
@@ -433,7 +910,6 @@ export default function ProjectWorkspacePage() {
                               )}
                             </div>
 
-                            {/* Assignee Avatar/Initial */}
                             {task.assignee && (
                               <div className="flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 border border-border/40 rounded-full text-[9px] font-semibold text-foreground max-w-28 truncate">
                                 <User className="h-2.5 w-2.5 text-indigo-400 shrink-0" />
@@ -469,16 +945,13 @@ export default function ProjectWorkspacePage() {
                 <div 
                   key={task.id} 
                   onClick={() => handleOpenEdit(task)}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-card/50 cursor-pointer gap-4 transition-all"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-card/50 cursor-pointer gap-4 transition-all text-left"
                 >
                   <div className="flex items-start gap-3 min-w-0">
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        updateTaskStatusMutation.mutate({ 
-                          id: task.id, 
-                          status: task.status === "completed" ? "todo" : "completed" 
-                        });
+                        handleMoveTaskColumn(task, task.status === "completed" ? "todo" : "completed");
                       }}
                       className={`h-5 w-5 rounded border border-border flex items-center justify-center shrink-0 mt-0.5 transition-all cursor-pointer ${task.status === "completed" ? "bg-emerald-600 border-emerald-500 text-white" : "bg-background hover:border-indigo-500"}`}
                     >
@@ -570,7 +1043,7 @@ export default function ProjectWorkspacePage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-muted-foreground">Status</label>
-                <Select value={status} onValueChange={(val: any) => setStatus(val)}>
+                <Select value={status} onValueChange={(val: "todo" | "in_progress" | "completed") => setStatus(val)}>
                   <SelectTrigger className="bg-background border-border h-9">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
@@ -584,7 +1057,7 @@ export default function ProjectWorkspacePage() {
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-muted-foreground">Priority</label>
-                <Select value={priority} onValueChange={(val: any) => setPriority(val)}>
+                <Select value={priority} onValueChange={(val: "low" | "medium" | "high") => setPriority(val)}>
                   <SelectTrigger className="bg-background border-border h-9">
                     <SelectValue placeholder="Priority" />
                   </SelectTrigger>
@@ -606,7 +1079,7 @@ export default function ProjectWorkspacePage() {
                 <SelectContent className="bg-card border-border">
                   <SelectItem value="none">Unassigned</SelectItem>
                   {users.map(u => (
-                    <SelectItem key={u.id} value={u.id}>{u.username} ({u.email})</SelectItem>
+                    <SelectItem key={u.id} value={u.id}>{u.username}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -662,7 +1135,7 @@ export default function ProjectWorkspacePage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-muted-foreground">Status</label>
-                <Select value={status} onValueChange={(val: any) => setStatus(val)}>
+                <Select value={status} onValueChange={(val: "todo" | "in_progress" | "completed") => setStatus(val)}>
                   <SelectTrigger className="bg-background border-border h-9">
                     <SelectValue />
                   </SelectTrigger>
@@ -676,7 +1149,7 @@ export default function ProjectWorkspacePage() {
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-muted-foreground">Priority</label>
-                <Select value={priority} onValueChange={(val: any) => setPriority(val)}>
+                <Select value={priority} onValueChange={(val: "low" | "medium" | "high") => setPriority(val)}>
                   <SelectTrigger className="bg-background border-border h-9">
                     <SelectValue />
                   </SelectTrigger>
@@ -698,7 +1171,7 @@ export default function ProjectWorkspacePage() {
                 <SelectContent className="bg-card border-border">
                   <SelectItem value="none">Unassigned</SelectItem>
                   {users.map(u => (
-                    <SelectItem key={u.id} value={u.id}>{u.username} ({u.email})</SelectItem>
+                    <SelectItem key={u.id} value={u.id}>{u.username}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

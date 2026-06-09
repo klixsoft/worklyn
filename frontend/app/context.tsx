@@ -186,6 +186,8 @@ export interface WorkspaceContextType {
   
   addChannel: (projectId: string, name: string, type: "text" | "voice", assignedMemberIds?: string[]) => void;
   updateChannelMembers: (projectId: string, channelId: string, assignedMemberIds: string[]) => void;
+  getProjectChannels: (projectId: string) => Channel[];
+  extraChannels: Record<string, Channel[]>;
   sendMessage: (text: string, attachment?: { name: string; type: string; url: string }) => void;
   reactToMessage: (messageId: string, emoji: string) => void;
   
@@ -553,7 +555,8 @@ const INITIAL_ROLES: string[] = [
 
 export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(INITIAL_PROJECTS[0]?.id || null);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [extraChannels, setExtraChannels] = useState<Record<string, Channel[]>>({});
   const [activeTab, setActiveTab] = useState<WorkspaceContextType["activeTab"]>("dashboard");
   const [globalChannels, setGlobalChannels] = useState<Channel[]>(INITIAL_GLOBAL_CHANNELS);
   const [directMessages, setDirectMessages] = useState<{ [userId: string]: Message[] }>({
@@ -925,16 +928,26 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       assignedMemberIds: assignedMemberIds && assignedMemberIds.length > 0 ? assignedMemberIds : undefined,
       messages: [],
     };
+    const isMockProject = projects.some(p => p.id === projectId);
+    if (isMockProject) {
+      setProjects((prev) =>
+        prev.map((proj) => {
+          if (proj.id !== projectId) return proj;
+          return { ...proj, channels: [...proj.channels, newChannel] };
+        })
+      );
+    } else {
+      setExtraChannels((prev) => ({
+        ...prev,
+        [projectId]: [...(prev[projectId] ?? []), newChannel],
+      }));
+    }
+  };
 
-    setProjects((prev) =>
-      prev.map((proj) => {
-        if (proj.id !== projectId) return proj;
-        return {
-          ...proj,
-          channels: [...proj.channels, newChannel],
-        };
-      })
-    );
+  const getProjectChannels = (projectId: string): Channel[] => {
+    const mockProj = projects.find(p => p.id === projectId);
+    if (mockProj) return mockProj.channels;
+    return extraChannels[projectId] ?? [];
   };
 
   const updateChannelMembers = (projectId: string, channelId: string, assignedMemberIds: string[]) => {
@@ -1292,6 +1305,8 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           
           addChannel,
           updateChannelMembers,
+          getProjectChannels,
+          extraChannels,
           sendMessage,
           reactToMessage,
           

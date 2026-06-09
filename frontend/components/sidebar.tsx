@@ -170,7 +170,7 @@ export const Sidebar: React.FC = () => {
   });
 
   const currentProjectId = useMemo(() => {
-    const match = pathname.match(/\/projects\/([a-f0-9-]+)/);
+    const match = pathname.match(/\/projects\/([-\w]+)/);
     return match ? match[1] : null;
   }, [pathname]);
 
@@ -179,19 +179,32 @@ export const Sidebar: React.FC = () => {
     return dbProjects.find(p => p.id === currentProjectId) || null;
   }, [currentProjectId, dbProjects]);
 
+  // Look up mock project by URL-detected ID
+  const currentMockProject = useMemo(() => {
+    if (!currentProjectId) return null;
+    return projects.find(p => p.id === currentProjectId) || null;
+  }, [currentProjectId, projects]);
+
   const isGlobalActive = useMemo(() => {
     return pathname === "/dashboard" || pathname === "/updates" || pathname === "/attendance" || pathname === "/chat" || pathname === "/users" || pathname === "/roles" || pathname === "/finance" || pathname === "/hr";
   }, [pathname]);
 
+  // Prefer URL-detected project ID (works for both mock and DB)
   const activeProjId = useMemo(() => {
-    return currentProject ? currentProject.id : (activeProject && !isGlobalActive ? activeProject.id : null);
-  }, [currentProject, activeProject, isGlobalActive]);
+    if (currentProjectId) return currentProjectId;
+    return activeProject && !isGlobalActive ? activeProject.id : null;
+  }, [currentProjectId, activeProject, isGlobalActive]);
 
   const activeProjName = useMemo(() => {
-    return currentProject ? currentProject.name : (activeProject && !isGlobalActive ? activeProject.name : null);
-  }, [currentProject, activeProject, isGlobalActive]);
+    if (currentProject) return currentProject.name;
+    if (currentMockProject) return currentMockProject.name;
+    return activeProject && !isGlobalActive ? activeProject.name : null;
+  }, [currentProject, currentMockProject, activeProject, isGlobalActive]);
 
   const isProjectMode = !!activeProjId;
+
+  // Effective mock project to render channels from
+  const effectiveMockProject = currentMockProject || (activeProject && !isGlobalActive ? activeProject : null);
 
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
   const [projName, setProjName] = useState("");
@@ -275,7 +288,7 @@ export const Sidebar: React.FC = () => {
           setActiveChannel(firstText.id, "project");
         }
       }
-      router.push(`/projects/${projId}/board`);
+      router.push(`/projects/${projId}`);
     } else {
       router.push("/dashboard");
     }
@@ -283,18 +296,18 @@ export const Sidebar: React.FC = () => {
 
 
   const textChannels = useMemo(() => {
-    if (!activeProject?.channels) return [];
-    return activeProject.channels.filter(
+    if (!effectiveMockProject?.channels) return [];
+    return effectiveMockProject.channels.filter(
       (c) => c.type === "text" && (!c.assignedMemberIds || c.assignedMemberIds.length === 0)
     );
-  }, [activeProject?.channels]);
+  }, [effectiveMockProject]);
 
   const chatGroups = useMemo(() => {
-    if (!activeProject?.channels) return [];
-    return activeProject.channels.filter(
+    if (!effectiveMockProject?.channels) return [];
+    return effectiveMockProject.channels.filter(
       (c) => c.type === "text" && c.assignedMemberIds && c.assignedMemberIds.length > 0
     );
-  }, [activeProject?.channels]);
+  }, [effectiveMockProject]);
 
   return (
     <div className="flex h-screen select-none text-muted-foreground font-sans shrink-0">
@@ -546,7 +559,7 @@ export const Sidebar: React.FC = () => {
       <div className="flex w-60 flex-col bg-sidebar border-r border-border">
 
         <div className="flex h-12 items-center justify-between border-b border-border px-4 font-semibold text-foreground ">
-          <span className="truncate">{currentProject ? currentProject.name : (activeProject && !isGlobalActive ? activeProject.name : "Klixsoft Workspace")}</span>
+          <span className="truncate">{activeProjName || "Klixsoft Workspace"}</span>
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-800">
@@ -563,65 +576,37 @@ export const Sidebar: React.FC = () => {
           {isProjectMode ? (
             <div className="space-y-4">
               <div className="space-y-0.5">
-                <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">Navigation</p>
-                <Link
-                  href="/dashboard"
-                  className="relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                >
-                  <ArrowLeft className="h-4 w-4 shrink-0 text-indigo-400" />
-                  Exit Project Space
-                </Link>
-              </div>
-
-              <div className="space-y-0.5 pt-3 border-t border-border/60">
                 <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">Project Board</p>
 
-                {currentProject ? (
+                {[
+                  {
+                    href: `/projects/${activeProjId}`,
+                    icon: <LayoutDashboard className="h-4 w-4 shrink-0" />,
+                    label: "Project Dashboard",
+                    active: pathname === `/projects/${activeProjId}`
+                  },
+                  {
+                    href: `/projects/${activeProjId}/kanban`,
+                    icon: <Kanban className="h-4 w-4 shrink-0" />,
+                    label: "Kanban Board",
+                    active: pathname === `/projects/${activeProjId}/kanban`
+                  }
+                ].map((item) => (
                   <Link
-                    href={`/projects/${activeProjId}`}
+                    key={item.href}
+                    href={item.href}
                     className={cn(
                       "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all hover:bg-muted/60 hover:text-foreground",
-                      pathname === `/projects/${activeProjId}`
+                      item.active
                         ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
                         : "text-muted-foreground"
                     )}
                   >
-                    <Kanban className="h-4 w-4 shrink-0" />
-                    Kanban &amp; Backlog
+                    {item.icon}
+                    {item.label}
                   </Link>
-                ) : (
-                  <Link
-                    href={`/projects/${activeProjId}/board`}
-                    className={cn(
-                      "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all hover:bg-muted/60 hover:text-foreground",
-                      pathname.endsWith("/board")
-                        ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    <Kanban className="h-4 w-4 shrink-0" />
-                    Kanban Board
-                  </Link>
-                )}
+                ))}
               </div>
-
-              {currentProject && (
-                <div className="space-y-0.5 pt-3 border-t border-border/60">
-                  <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">Communication</p>
-                  <Link
-                    href={`/projects/${activeProjId}/chat`}
-                    className={cn(
-                      "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all hover:bg-muted/60 hover:text-foreground",
-                      pathname.endsWith("/chat")
-                        ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    <MessageSquare className="h-4 w-4 shrink-0" />
-                    Project Chat
-                  </Link>
-                </div>
-              )}
             </div>
           ) : (
             <>
@@ -679,7 +664,7 @@ export const Sidebar: React.FC = () => {
           )}
 
           {/* ── Project Channels ── */}
-          {activeProject && !isGlobalActive && (
+          {isProjectMode && effectiveMockProject && (
             <div className="space-y-4 pt-2">
 
               <div className="space-y-0.5">
@@ -692,11 +677,11 @@ export const Sidebar: React.FC = () => {
                 </div>
 
                 {textChannels.map((channel) => {
-                  const isSelected = pathname.endsWith("/chat") && activeChannelId === channel.id;
+                  const isSelected = pathname === `/projects/${activeProjId}/chat/${channel.id}`;
                   return (
                     <button
                       key={channel.id}
-                      onClick={() => { setActiveChannel(channel.id, "project"); router.push(`/projects/${activeProject.id}/chat`); }}
+                      onClick={() => { setActiveChannel(channel.id, "project"); router.push(`/projects/${activeProjId}/chat/${channel.id}`); }}
                       className={cn(
                         "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm transition-all hover:bg-muted/60 hover:text-foreground",
                         isSelected
@@ -721,11 +706,11 @@ export const Sidebar: React.FC = () => {
                 </div>
 
                 {chatGroups.map((channel) => {
-                  const isSelected = pathname.endsWith("/chat") && activeChannelId === channel.id;
+                  const isSelected = pathname === `/projects/${activeProjId}/chat/${channel.id}`;
                   return (
                     <button
                       key={channel.id}
-                      onClick={() => { setActiveChannel(channel.id, "project"); router.push(`/projects/${activeProject.id}/chat`); }}
+                      onClick={() => { setActiveChannel(channel.id, "project"); router.push(`/projects/${activeProjId}/chat/${channel.id}`); }}
                       className={cn(
                         "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm transition-all hover:bg-muted/60 hover:text-foreground",
                         isSelected
@@ -749,8 +734,8 @@ export const Sidebar: React.FC = () => {
                     </DialogTitle>
                     <DialogDescription className="text-muted-foreground text-xs">
                       {isGroupCreation
-                        ? `Create a private discussion group inside the ${activeProject.name} workspace.`
-                        : `Create a text discussion channel inside the ${activeProject.name} workspace.`}
+                        ? `Create a private discussion group inside the ${effectiveMockProject.name} workspace.`
+                        : `Create a text discussion channel inside the ${effectiveMockProject.name} workspace.`}
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleCreateChannel} className="flex flex-col flex-1 gap-0 overflow-hidden">
