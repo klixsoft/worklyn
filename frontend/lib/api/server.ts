@@ -40,9 +40,6 @@ export const serverApi = ky.create({
                 });
               }
             } catch (err) {
-              /**
-               * Failed token refresh can be logged or handled accordingly.
-               */
             }
           }
         }
@@ -53,9 +50,6 @@ export const serverApi = ky.create({
 
 
 export async function hasPermissionServer(permission: string): Promise<boolean> {
-  /**
-   * Verifies if the authenticated session user possesses the required permission.
-   */
   const session = await getSession();
   if (!session?.user) {
     return false;

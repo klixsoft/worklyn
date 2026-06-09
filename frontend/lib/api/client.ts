@@ -4,19 +4,20 @@ export const clientApi = ky.create({
   prefix: "/api",
   hooks: {
     beforeRequest: [
-      async ({ request }) => {
-        /**
-         * Client-side requests attach session cookies automatically.
-         */
+      async () => {
       },
     ],
     afterResponse: [
-      async ({ response }) => {
-        if (response.status === 401) {
-          /**
-           * Token refresh flow or session validation checks can be handled here.
-           */
+      async ({ request, response }) => {
+        if (!response.ok) {
+          try {
+            const errorJSON = await response.clone().json() as { errors?: Record<string, string>; detail?: string };
+            const responseWithCache = response as Response & { errorData?: { errors?: Record<string, string>; detail?: string } };
+            responseWithCache.errorData = errorJSON;
+          } catch {
+          }
         }
+        return response;
       },
     ],
   },
@@ -27,9 +28,6 @@ export function hasPermissionClient(
   user: { role: string; permissions: string[] } | null | undefined,
   permission: string
 ): boolean {
-  /**
-   * Checks client-side if the current user possesses permission rights.
-   */
   if (!user) {
     return false;
   }

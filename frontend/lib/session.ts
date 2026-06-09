@@ -7,6 +7,7 @@ export interface SessionData {
     email: string;
     role: string;
     permissions: string[];
+    isSuperuser: boolean;
     firstName?: string;
     lastName?: string;
     avatar?: string;

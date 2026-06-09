@@ -3,9 +3,6 @@ import { getSession } from "@/lib/session";
 
 
 export async function POST(request: NextRequest) {
-  /**
-   * Authenticates user credentials against the backend API and initiates session.
-   */
   try {
     const body = await request.json();
     const { email, password } = body;
@@ -20,7 +17,7 @@ export async function POST(request: NextRequest) {
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
       return NextResponse.json(
-        { message: errorData.detail || "Invalid credentials" },
+        errorData,
         { status: res.status }
       );
     }
@@ -33,6 +30,7 @@ export async function POST(request: NextRequest) {
       email: userData.email,
       role: userData.role,
       permissions: userData.permissions,
+      isSuperuser: userData.is_superuser,
       firstName: userData.first_name,
       lastName: userData.last_name,
       avatar: userData.avatar,
@@ -44,9 +42,10 @@ export async function POST(request: NextRequest) {
     await session.save();
 
     return NextResponse.json({ success: true, user: session.user });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
-      { message: error.message || "Internal server error" },
+      { message: errMsg },
       { status: 500 }
     );
   }

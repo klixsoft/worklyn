@@ -7,17 +7,11 @@ from app.core.database import SessionLocal
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """
-    Yields a database session and closes it when the request is completed.
-    """
     async with SessionLocal() as session:
         yield session
 
 
 async def get_redis() -> AsyncGenerator[redis.Redis, None]:
-    """
-    Yields a Redis client connection and closes it upon completion.
-    """
     client = redis.from_url(settings.REDIS_URL, decode_responses=True)
     try:
         yield client
@@ -26,9 +20,6 @@ async def get_redis() -> AsyncGenerator[redis.Redis, None]:
 
 
 async def get_rabbitmq() -> AsyncGenerator[Optional[aio_pika.abc.AbstractConnection], None]:
-    """
-    Yields a robust RabbitMQ connection and closes it upon completion.
-    """
     if settings.APP_ENV == "development":
         yield None
         return
@@ -40,9 +31,6 @@ async def get_rabbitmq() -> AsyncGenerator[Optional[aio_pika.abc.AbstractConnect
 
 
 def verify_permission(required_permission: str):
-    """
-    Validates JWT and verifies that the authenticated user holds the requested permission capability.
-    """
     import jwt
     from fastapi import Depends, Header, HTTPException, status
     from typing import Optional
@@ -97,6 +85,9 @@ def verify_permission(required_permission: str):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found or inactive",
             )
+
+        if user.is_superuser:
+            return user
 
         permissions = set()
         user_roles_list = []

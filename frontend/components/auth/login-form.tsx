@@ -115,7 +115,7 @@ export function LoginForm() {
             <Button
               type="submit"
               disabled={mutation.isPending}
-              className="w-full mt-2 py-3 rounded-xl flex items-center justify-center space-x-2 transition-all cursor-pointer"
+              className="w-full mt-2 flex items-center justify-center space-x-2 transition-all cursor-pointer"
             >
               {mutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

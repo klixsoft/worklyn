@@ -19,9 +19,6 @@ router = APIRouter()
 
 @router.post("/login", response_model=UserResponse)
 async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)) -> UserResponse:
-    """
-    Authenticates user, issues JWT access and refresh tokens, and returns user details.
-    """
     stmt = (
         select(User)
         .where(User.email == credentials.email.lower(), User.is_active == True)
@@ -53,6 +50,7 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)) -
         email=user.email,
         role=primary_role,
         permissions=list(permissions),
+        is_superuser=user.is_superuser,
         first_name=user.first_name,
         last_name=user.last_name,
         avatar=user.avatar,

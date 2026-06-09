@@ -20,6 +20,12 @@ async def lifespan(app: FastAPI):
     Manages FastAPI startup and shutdown lifecycles.
     """
     setup_logging()
+    
+    from app.core.database import engine, Base
+    from app.models.auth import User, Role, Permission
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        
     yield
 
 

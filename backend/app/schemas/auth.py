@@ -3,23 +3,16 @@ from pydantic import BaseModel
 
 
 class LoginRequest(BaseModel):
-    """
-    Pydantic schema representing authentication credentials.
-    """
-
     email: str
     password: str
 
 
 class UserResponse(BaseModel):
-    """
-    Pydantic schema representing returned user information, including tokens.
-    """
-
     id: str
     email: str
     role: str
     permissions: List[str]
+    is_superuser: bool
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     avatar: Optional[str] = None

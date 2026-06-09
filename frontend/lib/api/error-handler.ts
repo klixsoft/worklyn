@@ -5,28 +5,31 @@ import { toast } from "sonner";
 
 export async function handleApiError<TFieldValues extends FieldValues>(
   error: unknown,
-  form?: UseFormReturn<TFieldValues, any>
+  form?: UseFormReturn<TFieldValues>
 ) {
-  /**
-   * Processes API error schemas and maps them dynamically to form fields or general toast notifications.
-   */
   if (error instanceof HTTPError) {
     try {
-      const errorData = await error.response.clone().json();
+      const responseWithCache = error.response as Response & { errorData?: { errors?: Record<string, string>; detail?: string } };
+      const errorData = responseWithCache.errorData || await error.response.clone().json();
+      console.log("Error Data parsed:", errorData);
+
       if (errorData?.errors) {
         Object.entries(errorData.errors).forEach(([field, msg]) => {
+          const messageStr = typeof msg === "string" ? msg : String(msg);
           if (field === "non_field_errors" || !form) {
-            toast.error(msg as string);
+            toast.error(messageStr);
           } else {
-            form.setError(field as any, { message: msg as string });
+            form.setError(field as Parameters<typeof form.setError>[0], { message: messageStr });
           }
         });
         return;
       }
-    } catch {
-      /**
-       * Fallback when response body is not in JSON format.
-       */
+      if (errorData?.detail) {
+        toast.error(errorData.detail);
+        return;
+      }
+    } catch (e) {
+      console.error("Failed to parse JSON error response:", e);
     }
   }
 
