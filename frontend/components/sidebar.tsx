@@ -31,7 +31,9 @@ import {
   ShieldCheck,
   DollarSign,
   UserCog,
-  FolderOpen
+  FolderOpen,
+  ArrowLeft,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -177,6 +179,20 @@ export const Sidebar: React.FC = () => {
     return dbProjects.find(p => p.id === currentProjectId) || null;
   }, [currentProjectId, dbProjects]);
 
+  const isGlobalActive = useMemo(() => {
+    return pathname === "/dashboard" || pathname === "/updates" || pathname === "/attendance" || pathname === "/chat" || pathname === "/users" || pathname === "/roles" || pathname === "/finance" || pathname === "/hr";
+  }, [pathname]);
+
+  const activeProjId = useMemo(() => {
+    return currentProject ? currentProject.id : (activeProject && !isGlobalActive ? activeProject.id : null);
+  }, [currentProject, activeProject, isGlobalActive]);
+
+  const activeProjName = useMemo(() => {
+    return currentProject ? currentProject.name : (activeProject && !isGlobalActive ? activeProject.name : null);
+  }, [currentProject, activeProject, isGlobalActive]);
+
+  const isProjectMode = !!activeProjId;
+
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
   const [projName, setProjName] = useState("");
   const [projDesc, setProjDesc] = useState("");
@@ -265,9 +281,6 @@ export const Sidebar: React.FC = () => {
     }
   }, [setActiveProjectId, projects, setActiveChannel, router]);
 
-  const isGlobalActive = useMemo(() => {
-    return pathname === "/dashboard" || pathname === "/updates" || pathname === "/attendance" || pathname === "/chat" || pathname === "/users" || pathname === "/roles" || pathname === "/finance" || pathname === "/hr";
-  }, [pathname]);
 
   const textChannels = useMemo(() => {
     if (!activeProject?.channels) return [];
@@ -547,92 +560,122 @@ export const Sidebar: React.FC = () => {
             />
           </div>
 
-          <div className="space-y-0.5 mt-4">
-            <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">Global Actions</p>
-
-            {[
-              { href: "/dashboard", icon: <LayoutDashboard className="h-4 w-4 shrink-0" />, label: "Dashboard", active: pathname === "/dashboard" },
-              { href: "/updates", icon: <ClipboardList className="h-4 w-4 shrink-0" />, label: "Daily Updates", active: pathname === "/updates" },
-              { href: "/files", icon: <FolderOpen className="h-4 w-4 shrink-0" />, label: "Files Manager", active: pathname === "/files" },
-              { href: "/projects", icon: <Kanban className="h-4 w-4 shrink-0" />, label: "Projects Manager", active: pathname.startsWith("/projects") },
-              ...(!(activeProject && !isGlobalActive) ? [{ href: "/attendance", icon: <Clock className="h-4 w-4 shrink-0" />, label: "Attendance Clock", active: pathname === "/attendance" }] : []),
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all hover:bg-muted/60 hover:text-foreground",
-                  item.active
-                    ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
-                    : "text-muted-foreground"
-                )}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-            ))}
-          </div>
-
-          {isGlobalActive && (
-            <div className="space-y-0.5 pt-3 border-t border-border/60">
-              <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">People &amp; Access</p>
-
-              {[
-                { href: "/users", icon: <Users className="h-4 w-4 shrink-0" />, label: "Users", active: pathname === "/users" },
-                { href: "/roles", icon: <ShieldCheck className="h-4 w-4 shrink-0" />, label: "Roles", active: pathname === "/roles" },
-              ].map((item) => (
+          {isProjectMode ? (
+            <div className="space-y-4">
+              <div className="space-y-0.5">
+                <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">Navigation</p>
                 <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all hover:bg-muted/60 hover:text-foreground",
-                    item.active
-                      ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
-                      : "text-muted-foreground"
-                  )}
+                  href="/dashboard"
+                  className="relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                 >
-                  {item.icon}
-                  {item.label}
+                  <ArrowLeft className="h-4 w-4 shrink-0 text-indigo-400" />
+                  Exit Project Space
                 </Link>
-              ))}
-            </div>
-          )}
+              </div>
 
-          {currentProject && (
-            <div className="space-y-0.5 pt-3 border-t border-border/60">
-              <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">Project Board</p>
+              <div className="space-y-0.5 pt-3 border-t border-border/60">
+                <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">Project Board</p>
 
-              <Link
-                href={`/projects/${currentProject.id}`}
-                className={cn(
-                  "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all hover:bg-muted/60 hover:text-foreground",
-                  pathname === `/projects/${currentProject.id}`
-                    ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
-                    : "text-muted-foreground"
+                {currentProject ? (
+                  <Link
+                    href={`/projects/${activeProjId}`}
+                    className={cn(
+                      "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all hover:bg-muted/60 hover:text-foreground",
+                      pathname === `/projects/${activeProjId}`
+                        ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    <Kanban className="h-4 w-4 shrink-0" />
+                    Kanban &amp; Backlog
+                  </Link>
+                ) : (
+                  <Link
+                    href={`/projects/${activeProjId}/board`}
+                    className={cn(
+                      "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all hover:bg-muted/60 hover:text-foreground",
+                      pathname.endsWith("/board")
+                        ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    <Kanban className="h-4 w-4 shrink-0" />
+                    Kanban Board
+                  </Link>
                 )}
-              >
-                <Kanban className="h-4 w-4 shrink-0" />
-                Kanban &amp; Backlog
-              </Link>
-            </div>
-          )}
-          {activeProject && !isGlobalActive && !currentProject && (
-            <div className="space-y-0.5 pt-3 border-t border-border/60">
-              <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">Project Board</p>
+              </div>
 
-              <Link
-                href={`/projects/${activeProject.id}/board`}
-                className={cn(
-                  "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all hover:bg-muted/60 hover:text-foreground",
-                  pathname.endsWith("/board")
-                    ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
-                    : "text-muted-foreground"
-                )}
-              >
-                <Kanban className="h-4 w-4 shrink-0" />
-                Kanban Board
-              </Link>
+              {currentProject && (
+                <div className="space-y-0.5 pt-3 border-t border-border/60">
+                  <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">Communication</p>
+                  <Link
+                    href={`/projects/${activeProjId}/chat`}
+                    className={cn(
+                      "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all hover:bg-muted/60 hover:text-foreground",
+                      pathname.endsWith("/chat")
+                        ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    <MessageSquare className="h-4 w-4 shrink-0" />
+                    Project Chat
+                  </Link>
+                </div>
+              )}
             </div>
+          ) : (
+            <>
+              <div className="space-y-0.5 mt-4">
+                <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">Global Actions</p>
+
+                {[
+                  { href: "/dashboard", icon: <LayoutDashboard className="h-4 w-4 shrink-0" />, label: "Dashboard", active: pathname === "/dashboard" },
+                  { href: "/updates", icon: <ClipboardList className="h-4 w-4 shrink-0" />, label: "Daily Updates", active: pathname === "/updates" },
+                  { href: "/files", icon: <FolderOpen className="h-4 w-4 shrink-0" />, label: "Files Manager", active: pathname === "/files" },
+                  { href: "/projects", icon: <Kanban className="h-4 w-4 shrink-0" />, label: "Projects Manager", active: pathname.startsWith("/projects") },
+                  { href: "/attendance", icon: <Clock className="h-4 w-4 shrink-0" />, label: "Attendance Clock", active: pathname === "/attendance" },
+                ].map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all hover:bg-muted/60 hover:text-foreground",
+                      item.active
+                        ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+
+              {isGlobalActive && (
+                <div className="space-y-0.5 pt-3 border-t border-border/60">
+                  <p className="px-2 text-[10px] font-bold text-zinc-500 mb-2">People &amp; Access</p>
+
+                  {[
+                    { href: "/users", icon: <Users className="h-4 w-4 shrink-0" />, label: "Users", active: pathname === "/users" },
+                    { href: "/roles", icon: <ShieldCheck className="h-4 w-4 shrink-0" />, label: "Roles", active: pathname === "/roles" },
+                  ].map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "relative flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm font-medium transition-all hover:bg-muted/60 hover:text-foreground",
+                        item.active
+                          ? "bg-muted/60 text-foreground before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-indigo-500"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {item.icon}
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </>
           )}
 
           {/* ── Project Channels ── */}
